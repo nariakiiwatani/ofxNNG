@@ -5,6 +5,7 @@
 #include "reqrep0/req.h"
 #include "supplemental/util/platform.h"
 #include "ofLog.h"
+#include "ASyncWork.h"
 
 namespace ofx {
 namespace nng {
@@ -14,93 +15,67 @@ public:
 	struct Settings {
 		std::string url;
 		nng_dialer *dialer=nullptr;
-		int flags=NNG_FLAG_NONBLOCK;
+		int flags=0;
+		int max_queue=16;
 	};
 	bool setup(const Settings &s) {
 		int result;
 		result = nng_req0_open(&socket_);
 		if(result != 0) {
-			ofLogError("ofxNNGReq") << "failed to open socket";
+			ofLogError("ofxNNGReq") << "failed to open socket; " << nng_strerror(result);
 			return false;
 		}
 		result = nng_dial(socket_, s.url.data(), s.dialer, s.flags);
 		if(result != 0) {
-			ofLogError("ofxNNGReq") << "failed to create dialer";
-			fatal("nng_dial", result);
+			ofLogError("ofxNNGReq") << "failed to create dialer; " << nng_strerror(result);
 			return false;
 		}
-		nng_mtx_alloc(&lock_wait_);
-		nng_mtx_alloc(&lock_run_);
-		is_thread_running_ = true;
-		nng_thread_create(&thread_, Req::threadedFunction, this);
+		work_.initialize(s.max_queue, &Req::receive, this);
 		return true;
 	}
-	virtual ~Req() {
-		if(thread_) {
-			nng_mtx_lock(lock_run_);
-			is_thread_running_ = false;
-			nng_mtx_unlock(lock_run_);
-			nng_thread_destroy(thread_);
+	void send(void *data, size_t len, int flags) {
+		auto work = work_.getUnused();
+		if(!work) {
+			ofLogWarning("ofxNNGReq") << "no unused work";
+			return;
 		}
-		if(lock_wait_) {
-			nng_mtx_free(lock_wait_);
-		}
-		if(lock_run_) {
-			nng_mtx_free(lock_run_);
-		}
-	};
-	void send(void *msg, size_t len, int flags) {
-		int result = nng_send(socket_, msg, len, flags);
-		if(result != 0) {
-			ofLogError("ofxNNGReq") << "failed to send message";
-			return false;
-		}
-		nng_mtx_lock(lock_wait_);
-		++waiting_msg_count_;
-		nng_mtx_unlock(lock_wait_);
+		nng_ctx_open(&work->ctx, socket_);
+		nng_msg *msg;
+		nng_msg_alloc(&msg, len);
+		nng_msg_append(msg, data, len);
+		nng_aio_set_msg(work->aio, msg);
+		work->state = aio::SEND;
+		nng_ctx_send(work->ctx, work->aio);
 	}
 private:
-	static void fatal(const char *func, int rv)
-	{
-		fprintf(stderr, "%s: %s\n", func, nng_strerror(rv));
-		exit(1);
-	}
 	nng_socket socket_;
-	nng_thread *thread_=nullptr;
-	int waiting_msg_count_=0;
-	nng_mtx *lock_wait_, *lock_run_;
-	bool is_thread_running_=false;
-	static void threadedFunction(void *arg) {
-		auto me = (Req*)arg;
-		void *msg = nullptr;
-		int flags = NNG_FLAG_NONBLOCK | NNG_FLAG_ALLOC;
-		for(;;) {
-			nng_mtx_lock(me->lock_run_);
-			if(!me->is_thread_running_) {
-				nng_mtx_unlock(me->lock_run_);
-				return;
-			}
-			nng_mtx_unlock(me->lock_run_);
-			nng_mtx_lock(me->lock_wait_);
-			int waiting = me->waiting_msg_count_;
-			nng_mtx_unlock(me->lock_wait_);
-			if(waiting == 0) {
-				continue;
-			}
-			size_t len=256;
-			int result = nng_recv(me->socket_, &msg, &len, flags);
-			if(result != 0) {
-				if(result == NNG_EAGAIN) {
-					continue;
+	aio::WorkPool work_;
+	static void receive(void *arg) {
+		auto work = (aio::Work*)arg;
+		auto me = (Req*)work->userdata;
+		switch(work->state) {
+			case aio::SEND: {
+				auto result = nng_aio_result(work->aio);
+				if(result != 0) {
+					ofLogError("ofxNNGReq") << "failed to send message; " << nng_strerror(result);
+					break;
 				}
-				ofLogError("ofxNNGReq") << "failed to receive message";
-				fatal("nng_recv", result);
-				return false;
-			}
-			ofLogNotice("ofxNNGReq") << "receive response: " << std::string((char*)msg, len);
-			nng_mtx_lock(me->lock_wait_);
-			--me->waiting_msg_count_;
-			nng_mtx_unlock(me->lock_wait_);
+				work->state = aio::RECV;
+				nng_ctx_recv(work->ctx, work->aio);
+			}	break;
+			case aio::RECV: {
+				auto result = nng_aio_result(work->aio);
+				if(result != 0) {
+					ofLogError("ofxNNGReq") << "failed to receive message; " << nng_strerror(result);
+					return;
+				}
+				auto msg = nng_aio_get_msg(work->aio);
+				auto body = nng_msg_body(msg);
+				int len = nng_msg_len(msg);
+				ofLogNotice("ofxNNGReq") << "receive response: " << std::string((char*)body, len);
+				nng_ctx_close(work->ctx);
+				work->release();
+			}	break;
 		}
 	}
 };
