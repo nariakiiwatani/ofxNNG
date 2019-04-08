@@ -47,6 +47,7 @@ public:
 		work->state = aio::SEND;
 		nng_ctx_send(work->ctx, work->aio);
 	}
+	ofEvent<nng_msg> onReply;
 private:
 	nng_socket socket_;
 	aio::WorkPool work_;
@@ -70,9 +71,7 @@ private:
 					return;
 				}
 				auto msg = nng_aio_get_msg(work->aio);
-				auto body = nng_msg_body(msg);
-				int len = nng_msg_len(msg);
-				ofLogNotice("ofxNNGReq") << "receive response: " << std::string((char*)body, len);
+				ofNotifyEvent(me->onReply, *msg, me);
 				nng_ctx_close(work->ctx);
 				work->release();
 			}	break;

@@ -10,6 +10,14 @@ void ofApp::setup(){
 	Req::Settings reqs;
 	reqs.url = "inproc://test";
 	req_.setup(reqs);
+	ofAddListener(req_.onReply, this, &ofApp::onReply);
+}
+
+void ofApp::onReply(nng_msg &msg)
+{
+	auto body = nng_msg_body(&msg);
+	auto len = nng_msg_len(&msg);
+	ofLogNotice() << std::string((char*)body, len);
 }
 
 
