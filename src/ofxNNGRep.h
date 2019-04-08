@@ -15,7 +15,7 @@ public:
 	struct Settings {
 		std::string url;
 		nng_listener *listener=nullptr;
-		int flags=NNG_FLAG_NONBLOCK;
+		int flags=0;
 		int max_queue=16;
 	};
 	bool setup(const Settings &s) {
@@ -31,7 +31,11 @@ public:
 			return false;
 		}
 		work_.initialize(s.max_queue, &Rep::receive, this);
-		activateNew();
+		while(auto work = work_.getUnused()) {
+			nng_ctx_open(&work->ctx, socket_);
+			work->state = aio::RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+		}
 		return true;
 	}
 private:
@@ -47,7 +51,6 @@ private:
 					ofLogError("ofxNNGRep") << "failed to receive message; " << nng_strerror(result);
 					return;
 				}
-				me->activateNew();
 				auto msg = nng_aio_get_msg(work->aio);
 				auto body = nng_msg_body(msg);
 				int len = nng_msg_len(msg);
@@ -62,17 +65,10 @@ private:
 					ofLogError("ofxNNGRep") << "failed to send message; " << nng_strerror(result);
 					break;
 				}
-				nng_ctx_close(work->ctx);
-				work->release();
+				work->state = aio::RECV;
+				nng_ctx_recv(work->ctx, work->aio);
 			}	break;
 		}
-	}
-	aio::Work* activateNew() {
-		auto work = work_.getUnused();
-		nng_ctx_open(&work->ctx, socket_);
-		work->state = aio::RECV;
-		nng_ctx_recv(work->ctx, work->aio);
-		return work;
 	}
 };
 }}
