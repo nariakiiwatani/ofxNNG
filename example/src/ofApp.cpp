@@ -5,6 +5,9 @@ using namespace ofx::nng;
 void ofApp::setup(){
 	Rep::Settings reps;
 	reps.url = "inproc://test";
+	reps.onRequest = [](nng_msg *msg) {
+		return true;	// simple echo
+	};
 	rep_.setup(reps);
 
 	Req::Settings reqs;

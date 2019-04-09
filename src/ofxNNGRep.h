@@ -17,6 +17,7 @@ public:
 		nng_listener *listener=nullptr;
 		int flags=0;
 		int max_queue=16;
+		std::function<bool(nng_msg*)> onRequest=[](nng_msg *msg) { return true; };
 	};
 	bool setup(const Settings &s) {
 		int result;
@@ -30,6 +31,7 @@ public:
 			ofLogError("ofxNNGRep") << "failed to create listener; " << nng_strerror(result);
 			return false;
 		}
+		onRequest = s.onRequest;
 		work_.initialize(s.max_queue, &Rep::receive, this);
 		while(auto work = work_.getUnused()) {
 			nng_ctx_open(&work->ctx, socket_);
@@ -41,6 +43,7 @@ public:
 private:
 	nng_socket socket_;
 	aio::WorkPool work_;
+	std::function<bool(nng_msg*)> onRequest;
 	static void receive(void *arg) {
 		auto work = (aio::Work*)arg;
 		auto me = (Rep*)work->userdata;
@@ -52,12 +55,15 @@ private:
 					return;
 				}
 				auto msg = nng_aio_get_msg(work->aio);
-				auto body = nng_msg_body(msg);
-				int len = nng_msg_len(msg);
-				ofLogNotice("ofxNNGRep") << "receive request: " << std::string((char*)body, len);
-				nng_aio_set_msg(work->aio, msg);
-				work->state = aio::SEND;
-				nng_ctx_send(work->ctx, work->aio);
+				if(me->onRequest(msg)) {
+					nng_aio_set_msg(work->aio, msg);
+					work->state = aio::SEND;
+					nng_ctx_send(work->ctx, work->aio);
+				}
+				else {
+					work->state = aio::RECV;
+					nng_ctx_recv(work->ctx, work->aio);
+				}
 			}	break;
 			case aio::SEND: {
 				auto result = nng_aio_result(work->aio);
