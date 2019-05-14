@@ -74,6 +74,7 @@ private:
 				ofNotifyEvent(me->onReply, *msg, me);
 				nng_ctx_close(work->ctx);
 				work->release();
+				nng_msg_free(msg);
 			}	break;
 		}
 	}
