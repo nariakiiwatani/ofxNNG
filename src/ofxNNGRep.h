@@ -6,6 +6,8 @@
 #include "supplemental/util/platform.h"
 #include "ofLog.h"
 #include "ASyncWork.h"
+#include "ofxNNGParseFunctions.h"
+#include "ofxNNGConvertFunctions.h"
 
 namespace ofx {
 namespace nng {
@@ -17,7 +19,6 @@ public:
 		nng_listener *listener=nullptr;
 		int flags=0;
 		int max_queue=16;
-		std::function<bool(nng_msg*)> onRequest=[](nng_msg *msg) { return true; };
 	};
 	bool setup(const Settings &s) {
 		int result;
@@ -31,8 +32,7 @@ public:
 			ofLogError("ofxNNGRep") << "failed to create listener; " << nng_strerror(result);
 			return false;
 		}
-		onRequest = s.onRequest;
-		work_.initialize(s.max_queue, &Rep::receive, this);
+		work_.initialize(s.max_queue, &Rep::async, this);
 		while(auto work = work_.getUnused()) {
 			nng_ctx_open(&work->ctx, socket_);
 			work->state = aio::RECV;
@@ -40,11 +40,66 @@ public:
 		}
 		return true;
 	}
+	bool hasWaitingRequest() const {
+		return !request_.empty();
+	}
+	template<typename T>
+	nng_ctx getNextRequest(T &msg) {
+		if(!hasWaitingRequest()) {
+			ofLogError("ofxNNGRep") << "no pending message";
+			return nng_ctx();
+		}
+		auto work = request_.front();
+		auto nngmsg = nng_aio_get_msg(work->aio);
+		if(!util::parse(*nngmsg, msg)) {
+			ofLogError("ofxNNGRep") << "failed to parse request";
+			return nng_ctx();
+		}
+		request_.pop_front();
+		pending_.push_back(work);
+		return work->ctx;
+	}
+	template<typename T>
+	bool reply(nng_ctx ctx, const T &msg) {
+		auto found = std::find_if(std::begin(pending_), std::end(pending_), [ctx](aio::Work *work) {
+			return nng_ctx_id(ctx) == nng_ctx_id(work->ctx);
+		});
+		if(found == std::end(pending_)) {
+			ofLogError("ofxNNGRep") << "no pending request with the context";
+			return false;
+		}
+		auto work = *found;
+		auto nngmsg = nng_aio_get_msg(work->aio);
+		if(!util::convert(msg, *nngmsg)) {
+			ofLogError("ofxNNGRep") << "failed to convert message";
+			return false;
+		}
+		nng_aio_set_msg(work->aio, nngmsg);
+		work->state = aio::SEND;
+		nng_ctx_send(work->ctx, work->aio);
+		pending_.erase(found);
+		return true;
+	}
+	bool abort(nng_ctx ctx) {
+		auto found = std::find_if(std::begin(pending_), std::end(pending_), [ctx](aio::Work *work) {
+			return nng_ctx_id(ctx) == nng_ctx_id(work->ctx);
+		});
+		if(found == std::end(pending_)) {
+			ofLogError("ofxNNGRep") << "no pending request with the context";
+			return false;
+		}
+		auto work = *found;
+		work->state = aio::RECV;
+		nng_ctx_recv(work->ctx, work->aio);
+		pending_.erase(found);
+		return true;
+	}
 private:
 	nng_socket socket_;
 	aio::WorkPool work_;
-	std::function<bool(nng_msg*)> onRequest;
-	static void receive(void *arg) {
+	std::deque<aio::Work*> request_;
+	std::deque<aio::Work*> pending_;
+	static void async(void *arg) {
 		auto work = (aio::Work*)arg;
 		auto me = (Rep*)work->userdata;
 		switch(work->state) {
@@ -54,16 +109,7 @@ private:
 					ofLogError("ofxNNGRep") << "failed to receive message; " << nng_strerror(result);
 					return;
 				}
-				auto msg = nng_aio_get_msg(work->aio);
-				if(me->onRequest(msg)) {
-					nng_aio_set_msg(work->aio, msg);
-					work->state = aio::SEND;
-					nng_ctx_send(work->ctx, work->aio);
-				}
-				else {
-					work->state = aio::RECV;
-					nng_ctx_recv(work->ctx, work->aio);
-				}
+				me->request_.push_back(work);
 			}	break;
 			case aio::SEND: {
 				auto result = nng_aio_result(work->aio);

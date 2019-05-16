@@ -5,9 +5,6 @@ using namespace ofx::nng;
 void ofApp::setup(){
 	Rep::Settings reps;
 	reps.url = "inproc://test";
-	reps.onRequest = [](nng_msg *msg) {
-		return true;	// simple echo
-	};
 	rep_.setup(reps);
 
 	Req::Settings reqs;
@@ -26,7 +23,12 @@ void ofApp::onReply(nng_msg &msg)
 
 //--------------------------------------------------------------
 void ofApp::update(){
-
+	while(rep_.hasWaitingRequest()) {
+		ofBuffer buffer;
+		auto ctx = rep_.getNextRequest(buffer);
+		buffer.append(":reply");
+		rep_.reply(ctx, buffer);
+	}
 }
 
 //--------------------------------------------------------------
