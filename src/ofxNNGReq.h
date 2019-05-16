@@ -33,7 +33,7 @@ public:
 		work_.initialize(s.max_queue, &Req::receive, this);
 		return true;
 	}
-	void send(void *data, size_t len, int flags) {
+	void send(void *data, size_t len) {
 		auto work = work_.getUnused();
 		if(!work) {
 			ofLogWarning("ofxNNGReq") << "no unused work";

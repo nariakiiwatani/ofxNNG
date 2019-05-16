@@ -37,7 +37,7 @@ void ofApp::draw(){
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
 	std::string msg = "pressed:" + ofToString((char)key);
-	req_.send(const_cast<char*>(msg.data()), msg.length(), NNG_FLAG_NONBLOCK);
+	req_.send(const_cast<char*>(msg.data()), msg.length());
 }
 
 //--------------------------------------------------------------
