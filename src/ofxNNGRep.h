@@ -33,11 +33,10 @@ public:
 			ofLogError("ofxNNGRep") << "failed to create listener; " << nng_strerror(result);
 			return false;
 		}
-		work_.initialize(s.max_queue, &Rep::async, this);
-		while(auto work = work_.getUnused()) {
-			nng_ctx_open(&work->ctx, socket_);
-			work->state = aio::RECV;
-			nng_ctx_recv(work->ctx, work->aio);
+		result = nng_mtx_alloc(&mtx_);
+		if(result != 0) {
+			ofLogError("ofxNNGReq") << "failed to create mutex; " << nng_strerror(result);
+			return false;
 		}
 		make_reply_ = [make_reply](nng_msg *msg) {
 			Request req = util::parse<Request>(*msg);
@@ -47,12 +46,16 @@ public:
 			}
 			return msg;
 		};
+		work_.initialize(s.max_queue, &Rep::async, this);
+		activateNewReceiver();
 		return true;
 	}
 private:
 	nng_socket socket_;
 	aio::WorkPool work_;
 	std::function<nng_msg*(nng_msg*)> make_reply_;
+	nng_mtx *mtx_;
+	
 	static void async(void *arg) {
 		auto work = (aio::Work*)arg;
 		auto me = (Rep*)work->userdata;
@@ -63,6 +66,7 @@ private:
 					ofLogError("ofxNNGRep") << "failed to receive message; " << nng_strerror(result);
 					return;
 				}
+				me->activateNewReceiver();
 				auto msg = nng_aio_get_msg(work->aio);
 				msg = me->make_reply_(msg);
 				nng_aio_set_msg(work->aio, msg);
@@ -75,10 +79,26 @@ private:
 					ofLogError("ofxNNGRep") << "failed to send message; " << nng_strerror(result);
 					break;
 				}
-				work->state = aio::RECV;
-				nng_ctx_recv(work->ctx, work->aio);
+				nng_ctx_close(work->ctx);
+				nng_mtx_lock(me->mtx_);
+				work->release();
+				nng_mtx_unlock(me->mtx_);
 			}	break;
 		}
+	}
+	bool activateNewReceiver() {
+		aio::Work *work = nullptr;
+		nng_mtx_lock(mtx_);
+		work = work_.getUnused();
+		nng_mtx_unlock(mtx_);
+		if(!work) {
+			ofLogWarning("ofxNNGRep") << "no unused work";
+			return false;
+		}
+		nng_ctx_open(&work->ctx, socket_);
+		work->state = aio::RECV;
+		nng_ctx_recv(work->ctx, work->aio);
+		return true;
 	}
 };
 }}
