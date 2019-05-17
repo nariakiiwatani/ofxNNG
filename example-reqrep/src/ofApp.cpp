@@ -10,16 +10,7 @@ void ofApp::setup(){
 	Req::Settings reqs;
 	reqs.url = "inproc://test";
 	req_.setup(reqs);
-	ofAddListener(req_.onReply, this, &ofApp::onReply);
 }
-
-void ofApp::onReply(nng_msg &msg)
-{
-	auto body = nng_msg_body(&msg);
-	auto len = nng_msg_len(&msg);
-	ofLogNotice() << std::string((char*)body, len);
-}
-
 
 //--------------------------------------------------------------
 void ofApp::update(){
@@ -28,6 +19,12 @@ void ofApp::update(){
 		auto ctx = rep_.getNextRequest(buffer);
 		buffer.append(":reply");
 		rep_.reply(ctx, buffer);
+	}
+	while(req_.hasWaitingResponse()) {
+		ofBuffer buffer;
+		if(req_.getNextResponse(buffer)) {
+			ofLogNotice() << buffer.getText();
+		}
 	}
 }
 
@@ -38,8 +35,9 @@ void ofApp::draw(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-	std::string msg = "pressed:" + ofToString((char)key);
-	req_.send(const_cast<char*>(msg.data()), msg.length());
+	auto buffer = ofBuffer();
+	buffer.set("pressed:" + ofToString((char)key));
+	req_.send(buffer);
 }
 
 //--------------------------------------------------------------

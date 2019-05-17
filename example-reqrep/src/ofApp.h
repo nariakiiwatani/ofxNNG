@@ -26,5 +26,4 @@ public:
 private:
 	ofx::nng::Req req_;
 	ofx::nng::Rep rep_;
-	void onReply(nng_msg &msg);
 };
