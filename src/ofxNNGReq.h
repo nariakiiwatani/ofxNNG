@@ -32,81 +32,44 @@ public:
 			ofLogError("ofxNNGReq") << "failed to create dialer; " << nng_strerror(result);
 			return false;
 		}
+		result = nng_mtx_alloc(&mtx_);
+		if(result != 0) {
+			ofLogError("ofxNNGReq") << "failed to create mutex; " << nng_strerror(result);
+			return false;
+		}
 		work_.initialize(s.max_queue, &Req::async, this);
 		return true;
 	}
-	template<typename T>
-	nng_ctx send(const T &data) {
-		auto work = work_.getUnused();
+	template<typename Request, typename Response>
+	bool send(const Request &req, std::function<void(const Response&)> callback) {
+		aio::Work *work = nullptr;
+		nng_mtx_lock(mtx_);
+		work = work_.getUnused();
+		nng_mtx_unlock(mtx_);
 		if(!work) {
 			ofLogWarning("ofxNNGReq") << "no unused work";
-			return nng_ctx();
+			return false;
 		}
 		nng_ctx_open(&work->ctx, socket_);
 		nng_msg *msg;
 		nng_msg_alloc(&msg, 0);
-		if(!util::convert(data, *msg)) {
+		if(!util::convert(req, *msg)) {
 			ofLogError("ofxNNGReq") << "failed to convert data";
-			return nng_ctx();
+			return false;
 		}
 		nng_aio_set_msg(work->aio, msg);
 		work->state = aio::SEND;
 		nng_ctx_send(work->ctx, work->aio);
-		return work->ctx;
-	}
-	bool hasWaitingResponse() const {
-		return !pending_.empty();
-	}
-	bool hasWaitingResponse(nng_ctx ctx) const {
-		return std::find_if(std::begin(pending_), std::end(pending_), [ctx](aio::Work *work) {
-			return nng_ctx_id(ctx) == nng_ctx_id(work->ctx);
-		}) != std::end(pending_);
-	}
-	template<typename T>
-	bool getNextResponse(T &dst) {
-		return hasWaitingResponse() && getResponse(pending_.front()->ctx, dst);
-	}
-	template<typename T>
-	bool getResponse(nng_ctx ctx, T &dst) {
-		auto found = std::find_if(std::begin(pending_), std::end(pending_), [ctx](aio::Work *work) {
-			return nng_ctx_id(ctx) == nng_ctx_id(work->ctx);
-		});
-		if(found == std::end(pending_)) {
-			ofLogError("ofxNNGReq") << "no pending request with the context";
-			return false;
-		}
-		auto work = *found;
-		auto msg = nng_aio_get_msg(work->aio);
-		if(!util::parse(*msg, dst)) {
-			ofLogError("ofxNNGReq") << "failed to convert message";
-			return false;
-		}
-		nng_msg_free(msg);
-		work->release();
-		nng_ctx_close(work->ctx);
-		pending_.erase(found);
-		return true;
-	}
-	bool abort(nng_ctx ctx) {
-		auto found = std::find_if(std::begin(pending_), std::end(pending_), [ctx](aio::Work *work) {
-			return nng_ctx_id(ctx) == nng_ctx_id(work->ctx);
-		});
-		if(found == std::end(pending_)) {
-			ofLogError("ofxNNGReq") << "no pending response with the context";
-			return false;
-		}
-		auto work = *found;
-		auto msg = nng_aio_get_msg(work->aio);
-		nng_msg_free(msg);
-		work->release();
-		nng_ctx_close(work->ctx);
-		pending_.erase(found);
+		callback_[nng_ctx_id(work->ctx)] = [callback](nng_msg *msg) {
+			callback(util::parse<ofBuffer>(*msg));
+		};
 		return true;
 	}
 private:
 	nng_socket socket_;
 	aio::WorkPool work_;
-	std::deque<aio::Work*> pending_;
+	std::map<int, std::function<void(nng_msg*)>> callback_;
+	nng_mtx *mtx_;
 	
 	static void async(void *arg) {
 		auto work = (aio::Work*)arg;
@@ -127,7 +90,13 @@ private:
 					ofLogError("ofxNNGReq") << "failed to receive message; " << nng_strerror(result);
 					return;
 				}
-				me->pending_.push_back(work);
+				auto msg = nng_aio_get_msg(work->aio);
+				me->callback_[nng_ctx_id(work->ctx)](msg);
+				nng_msg_free(msg);
+				nng_ctx_close(work->ctx);
+				nng_mtx_lock(me->mtx_);
+				work->release();
+				nng_mtx_unlock(me->mtx_);
 			}	break;
 		}
 	}

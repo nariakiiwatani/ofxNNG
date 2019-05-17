@@ -33,6 +33,8 @@ public:
 		onReceive = s.onReceive;
 		return true;
 	}
+	bool hasWaitingMessage() const {
+	}
 	void receive(int flags) {
 		nng_msg *msg;
 		int result;
@@ -47,6 +49,7 @@ public:
 	}
 private:
 	nng_socket socket_;
+	
 	std::function<bool(nng_msg*)> onReceive;
 };
 }}

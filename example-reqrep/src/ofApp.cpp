@@ -5,7 +5,9 @@ using namespace ofx::nng;
 void ofApp::setup(){
 	Rep::Settings reps;
 	reps.url = "inproc://test";
-	rep_.setup(reps);
+	rep_.setup(reps, std::function<ofBuffer(const ofBuffer&)>([](const ofBuffer &buffer) {
+		return buffer;
+	}));
 
 	Req::Settings reqs;
 	reqs.url = "inproc://test";
@@ -14,18 +16,7 @@ void ofApp::setup(){
 
 //--------------------------------------------------------------
 void ofApp::update(){
-	while(rep_.hasWaitingRequest()) {
-		ofBuffer buffer;
-		auto ctx = rep_.getNextRequest(buffer);
-		buffer.append(":reply");
-		rep_.reply(ctx, buffer);
-	}
-	while(req_.hasWaitingResponse()) {
-		ofBuffer buffer;
-		if(req_.getNextResponse(buffer)) {
-			ofLogNotice() << buffer.getText();
-		}
-	}
+
 }
 
 //--------------------------------------------------------------
@@ -37,7 +28,9 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
 	auto buffer = ofBuffer();
 	buffer.set("pressed:" + ofToString((char)key));
-	req_.send(buffer);
+	req_.send(buffer, std::function<void(const ofBuffer&)>([](const ofBuffer &buffer) {
+		ofLogNotice() << buffer.getText();
+	}));
 }
 
 //--------------------------------------------------------------
