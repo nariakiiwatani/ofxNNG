@@ -60,9 +60,11 @@ public:
 		nng_aio_set_msg(work->aio, msg);
 		work->state = aio::SEND;
 		nng_ctx_send(work->ctx, work->aio);
+		nng_mtx_lock(mtx_);
 		callback_[nng_ctx_id(work->ctx)] = [callback](nng_msg *msg) {
 			callback(util::parse<ofBuffer>(*msg));
 		};
+		nng_mtx_unlock(mtx_);
 		return true;
 	}
 private:
@@ -91,7 +93,10 @@ private:
 					return;
 				}
 				auto msg = nng_aio_get_msg(work->aio);
+				nng_mtx_lock(me->mtx_);
 				me->callback_[nng_ctx_id(work->ctx)](msg);
+				me->callback_.erase(nng_ctx_id(work->ctx));
+				nng_mtx_unlock(me->mtx_);
 				nng_msg_free(msg);
 				nng_ctx_close(work->ctx);
 				nng_mtx_lock(me->mtx_);
