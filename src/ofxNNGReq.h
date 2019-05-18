@@ -55,7 +55,7 @@ public:
 		nng_ctx_open(&work->ctx, socket_);
 		nng_msg *msg;
 		nng_msg_alloc(&msg, 0);
-		if(!util::convert(req, *msg)) {
+		if(!util::convert(req, msg)) {
 			ofLogError("ofxNNGReq") << "failed to convert data";
 			return false;
 		}
@@ -64,7 +64,7 @@ public:
 		nng_ctx_send(work->ctx, work->aio);
 		nng_mtx_lock(mtx_);
 		callback_[nng_ctx_id(work->ctx)] = [callback](nng_msg *msg) {
-			callback(util::parse<ofBuffer>(*msg));
+			callback(util::parse<ofBuffer>(msg));
 		};
 		nng_mtx_unlock(mtx_);
 		return true;

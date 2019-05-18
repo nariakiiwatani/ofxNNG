@@ -41,9 +41,9 @@ public:
 			return false;
 		}
 		make_reply_ = [make_reply](nng_msg *msg) {
-			Request req = util::parse<Request>(*msg);
+			Request req = util::parse<Request>(msg);
 			Response res = make_reply(req);
-			if(!util::convert(res, *msg)) {
+			if(!util::convert(res, msg)) {
 				ofLogError("ofxNNGRep") << "failed to convert message";
 			}
 			return msg;
