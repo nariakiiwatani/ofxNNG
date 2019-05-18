@@ -13,7 +13,7 @@ public:
 	struct Settings {
 		std::string url;
 		nng_dialer *dialer=nullptr;
-		int flags=0;
+		bool blocking=false;
 		int max_queue=16;
 		std::function<bool(nng_msg*)> onReceive=[](nng_msg *msg) { return true; };
 	};
@@ -24,7 +24,9 @@ public:
 			ofLogError("ofxNNGSub") << "failed to open socket;" << nng_strerror(result);
 			return false;
 		}
-		result = nng_dial(socket_, s.url.data(), s.dialer, s.flags);
+		int flags = 0;
+		if(!s.blocking) flags |= NNG_FLAG_NONBLOCK;
+		result = nng_dial(socket_, s.url.data(), s.dialer, flags);
 		if(result != 0) {
 			ofLogError("ofxNNGSub") << "failed to create dialer; " << nng_strerror(result);
 			return false;

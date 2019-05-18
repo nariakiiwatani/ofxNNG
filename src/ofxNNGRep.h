@@ -17,7 +17,7 @@ public:
 	struct Settings {
 		std::string url;
 		nng_listener *listener=nullptr;
-		int flags=0;
+		bool blocking=false;
 		int max_queue=16;
 	};
 	template<typename Request, typename Response>
@@ -28,7 +28,9 @@ public:
 			ofLogError("ofxNNGRep") << "failed to open socket;" << nng_strerror(result);
 			return false;
 		}
-		result = nng_listen(socket_, s.url.data(), s.listener, s.flags);
+		int flags = 0;
+		if(!s.blocking) flags |= NNG_FLAG_NONBLOCK;
+		result = nng_listen(socket_, s.url.data(), s.listener, flags);
 		if(result != 0) {
 			ofLogError("ofxNNGRep") << "failed to create listener; " << nng_strerror(result);
 			return false;
