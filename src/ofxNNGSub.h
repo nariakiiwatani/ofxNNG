@@ -16,7 +16,6 @@ public:
 		std::string url;
 		nng_dialer *dialer=nullptr;
 		bool blocking=false;
-		int max_queue=16;
 	};
 	template<typename T>
 	bool setup(const Settings &s, const std::function<void(const T&)> &callback) {

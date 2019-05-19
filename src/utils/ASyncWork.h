@@ -16,6 +16,10 @@ struct Work {
 	State state;
 	WorkPool *parent;
 	void release();
+	void initialize(void(*func)(void*), void *data) {
+		userdata = data;
+		nng_aio_alloc(&aio, func, this);
+	}
 	~Work() {
 		if(aio) {
 			nng_aio_free(aio);
@@ -29,9 +33,8 @@ public:
 	void initialize(int num_work, void(*func)(void*), void *userdata) {
 		work_.resize(num_work);
 		for(auto &w : work_) {
-			w.userdata = userdata;
+			w.initialize(func, userdata);
 			w.parent = this;
-			nng_aio_alloc(&w.aio, func, &w);
 			unused_.push_back(&w);
 		}
 	}
