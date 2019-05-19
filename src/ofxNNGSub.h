@@ -16,6 +16,8 @@ public:
 		std::string url;
 		nng_dialer *dialer=nullptr;
 		bool blocking=false;
+		
+		bool allow_callback_from_other_thread=false;
 	};
 	template<typename T>
 	bool setup(const Settings &s, const std::function<void(const T&)> &callback) {
@@ -35,6 +37,10 @@ public:
 		callback_ = [callback](nng_msg *msg) {
 			callback(util::parse<T>(msg));
 		};
+		async_ = s.allow_callback_from_other_thread;
+		if(!async_) {
+			ofAddListener(ofEvents().update, this, &Sub::update);
+		}
 		nng_aio_alloc(&aio_, &Sub::receive, this);
 		nng_recv_aio(socket_, aio_);
 		return true;
@@ -62,6 +68,8 @@ private:
 	nng_socket socket_;
 	nng_aio *aio_;
 	std::function<void(nng_msg*)> callback_;
+	bool async_;
+	ofThreadChannel<nng_msg*> channel_;
 	static void receive(void *arg) {
 		auto me = (Sub*)arg;
 		auto result = nng_aio_result(me->aio_);
@@ -70,9 +78,21 @@ private:
 			return;
 		}
 		auto msg = nng_aio_get_msg(me->aio_);
-		me->callback_(msg);
-		nng_msg_free(msg);
+		if(me->async_) {
+			me->callback_(msg);
+			nng_msg_free(msg);
+		}
+		else {
+			me->channel_.send(msg);
+		}
 		nng_recv_aio(me->socket_, me->aio_);
+	}
+	void update(ofEventArgs&) {
+		nng_msg *msg;
+		while(channel_.tryReceive(msg)) {
+			callback_(msg);
+			nng_msg_free(msg);
+		}
 	}
 };
 }}

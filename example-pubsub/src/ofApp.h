@@ -25,5 +25,5 @@ public:
 	void gotMessage(ofMessage msg);
 private:
 	ofx::nng::Pub pub_;
-	std::vector<ofx::nng::Sub> sub_;
+	std::vector<std::shared_ptr<ofx::nng::Sub>> sub_;
 };
