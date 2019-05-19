@@ -2,8 +2,10 @@
 
 #include <stddef.h>
 #include "nng.h"
+#include "supplemental/util/platform.h"
 #include "pubsub0/sub.h"
 #include "ASyncWork.h"
+#include "ofxNNGParseFunctions.h"
 
 namespace ofx {
 namespace nng {
@@ -15,9 +17,9 @@ public:
 		nng_dialer *dialer=nullptr;
 		bool blocking=false;
 		int max_queue=16;
-		std::function<bool(nng_msg*)> onReceive=[](nng_msg *msg) { return true; };
 	};
-	bool setup(const Settings &s) {
+	template<typename T>
+	bool setup(const Settings &s, const std::function<void(const T&)> &callback) {
 		int result;
 		result = nng_sub0_open(&socket_);
 		if(result != 0) {
@@ -31,27 +33,47 @@ public:
 			ofLogError("ofxNNGSub") << "failed to create dialer; " << nng_strerror(result);
 			return false;
 		}
-		result = nng_setopt(socket_, NNG_OPT_SUB_SUBSCRIBE, nullptr, 0);
-		onReceive = s.onReceive;
+		callback_ = [callback](nng_msg *msg) {
+			callback(util::parse<T>(msg));
+		};
+		nng_aio_alloc(&aio_, &Sub::receive, this);
+		nng_recv_aio(socket_, aio_);
 		return true;
 	}
-	bool hasWaitingMessage() const {
+	~Sub() {
+		if(aio_) nng_aio_free(aio_);
 	}
-	void receive(int flags) {
-		nng_msg *msg;
-		int result;
-		result = nng_recvmsg(socket_, &msg, flags);
+	bool subscribe(void *topic, std::size_t topic_length) {
+		int result = nng_setopt(socket_, NNG_OPT_SUB_SUBSCRIBE, topic, topic_length);
 		if(result != 0) {
-			if(result != 8) {
-				ofLogError("ofxNNGSub") << "failed to receive message; " << nng_strerror(result);
-			}
-			return;
+			ofLogError("ofxNNGSub") << "failed to subscribe topic; " << nng_strerror(result);
+			return false;
 		}
-		onReceive(msg);
+		return true;
+	}
+	bool unsubscribe(void *topic, std::size_t topic_length) {
+		int result = nng_setopt(socket_, NNG_OPT_SUB_UNSUBSCRIBE, topic, topic_length);
+		if(result != 0) {
+			ofLogError("ofxNNGSub") << "failed to unsubscribe topic; " << nng_strerror(result);
+			return false;
+		}
+		return true;
 	}
 private:
 	nng_socket socket_;
-	
-	std::function<bool(nng_msg*)> onReceive;
+	nng_aio *aio_;
+	std::function<void(nng_msg*)> callback_;
+	static void receive(void *arg) {
+		auto me = (Sub*)arg;
+		auto result = nng_aio_result(me->aio_);
+		if(result != 0) {
+			ofLogError("ofxNNGRep") << "failed to receive message; " << nng_strerror(result);
+			return;
+		}
+		auto msg = nng_aio_get_msg(me->aio_);
+		me->callback_(msg);
+		nng_msg_free(msg);
+		nng_recv_aio(me->socket_, me->aio_);
+	}
 };
 }}

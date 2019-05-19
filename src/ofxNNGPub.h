@@ -4,6 +4,7 @@
 #include "nng.h"
 #include "pubsub0/pub.h"
 #include "ASyncWork.h"
+#include "ofxNNGConvertFunctions.h"
 
 namespace ofx {
 namespace nng {
@@ -31,13 +32,22 @@ public:
 		}
 		return true;
 	}
-	void send(void *data, size_t len, int flags) {
+	template<typename T>
+	bool send(const T &data) {
+		nng_msg *msg;
+		nng_msg_alloc(&msg, 0);
+		if(!util::convert(data, msg)) {
+			ofLogError("ofxNNGPub") << "failed to convert message";
+			return false;
+		}
 		int result;
-		result = nng_send(socket_, data, len, flags);
+		result = nng_sendmsg(socket_, msg, 0);
 		if(result != 0) {
 			ofLogError("ofxNNGPub") << "failed to send message; " << nng_strerror(result);
-			return;
+			nng_msg_free(msg);
+			return false;
 		}
+		return true;
 	}
 private:
 	nng_socket socket_;

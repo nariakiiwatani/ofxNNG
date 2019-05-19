@@ -26,5 +26,4 @@ public:
 private:
 	ofx::nng::Pub pub_;
 	std::vector<ofx::nng::Sub> sub_;
-	void onReply(nng_msg &msg);
 };

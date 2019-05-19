@@ -10,28 +10,18 @@ void ofApp::setup(){
 
 	Sub::Settings subs;
 	subs.url = "inproc://test";
-	subs.onReceive = [this](nng_msg *msg) {
-		onReply(*msg);
-		return true;
-	};
 	sub_.resize(8);
 	for(auto &&s : sub_) {
-		s.setup(subs);
+		s.setup(subs, std::function<void(const ofBuffer&)>([](const ofBuffer &buffer) {
+			ofLogNotice("sub") << buffer.getText();
+		}));
+		s.subscribe(nullptr, 0);
 	}
-}
-
-void ofApp::onReply(nng_msg &msg)
-{
-	auto body = nng_msg_body(&msg);
-	auto len = nng_msg_len(&msg);
-	ofLogNotice() << std::string((char*)body, len);
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
-	for(auto &&s : sub_) {
-		s.receive(NNG_FLAG_NONBLOCK);
-	}
+
 }
 
 //--------------------------------------------------------------
@@ -41,8 +31,9 @@ void ofApp::draw(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-	std::string msg = "pressed:" + ofToString((char)key);
-	pub_.send(const_cast<char*>(msg.data()), msg.length(), NNG_FLAG_NONBLOCK);
+	ofBuffer buffer;
+	buffer.set(ofToString((char)key));
+	pub_.send(buffer);
 }
 
 //--------------------------------------------------------------
