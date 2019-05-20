@@ -3,7 +3,6 @@
 #include <stddef.h>
 #include "nng.h"
 #include "pubsub0/pub.h"
-#include "ASyncWork.h"
 #include "ofxNNGConvertFunctions.h"
 
 namespace ofx {
