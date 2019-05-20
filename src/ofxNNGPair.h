@@ -12,14 +12,11 @@
 
 namespace ofx {
 namespace nng {
-class Pair0
-{
-};
-
-class Pair1
+class Pair
 {
 public:
 	struct Settings {
+		int version = 1;
 		std::string url;
 		union {
 			nng_dialer *dialer;
@@ -33,7 +30,16 @@ public:
 	template<typename T>
 	bool setupAsDialer(const Settings &s, const std::function<void(const T&)> &callback) {
 		int result;
-		result = nng_pair1_open(&socket_);
+		switch(s.version) {
+			case 0:
+				result = nng_pair0_open(&socket_);
+				break;
+			default:
+				ofLogWarning("ofxNNGPair") << "version number must be 0 or 1. setting up as version 1.";
+			case 1:
+				result = nng_pair1_open(&socket_);
+				break;
+		}
 		if(result != 0) {
 			ofLogError("ofxNNGPair") << "failed to open socket; " << nng_strerror(result);
 			return false;
@@ -51,16 +57,25 @@ public:
 		nng_setopt_bool(socket_, NNG_OPT_PAIR1_POLY, s.polyamorous_mode);
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
-			ofAddListener(ofEvents().update, this, &Pair1::update);
+			ofAddListener(ofEvents().update, this, &Pair::update);
 		}
-		nng_aio_alloc(&aio_, &Pair1::receive, this);
+		nng_aio_alloc(&aio_, &Pair::receive, this);
 		nng_recv_aio(socket_, aio_);
 		return true;
 	}
 	template<typename T>
 	void setupAsListener(const Settings &s, const std::function<void(const T&)> &callback) {
 		int result;
-		result = nng_pair1_open(&socket_);
+		switch(s.version) {
+			case 0:
+				result = nng_pair0_open(&socket_);
+				break;
+			default:
+				ofLogWarning("ofxNNGPair") << "version number must be 0 or 1. setting up as version 1.";
+			case 1:
+				result = nng_pair1_open(&socket_);
+				break;
+		}
 		if(result != 0) {
 			ofLogError("ofxNNGPair") << "failed to open socket; " << nng_strerror(result);
 			return false;
@@ -78,16 +93,25 @@ public:
 		nng_setopt_bool(socket_, NNG_OPT_PAIR1_POLY, s.polyamorous_mode);
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
-			ofAddListener(ofEvents().update, this, &Pair1::update);
+			ofAddListener(ofEvents().update, this, &Pair::update);
 		}
-		nng_aio_alloc(&aio_, &Pair1::receive, this);
+		nng_aio_alloc(&aio_, &Pair::receive, this);
 		nng_recv_aio(socket_, aio_);
 		return true;
 	}
 	template<typename T>
 	bool setupAsDialer(const Settings &s, const std::function<void(const T&, nng_pipe)> &callback) {
 		int result;
-		result = nng_pair1_open(&socket_);
+		switch(s.version) {
+			case 0:
+				result = nng_pair0_open(&socket_);
+				break;
+			default:
+				ofLogWarning("ofxNNGPair") << "version number must be 0 or 1. setting up as version 1.";
+			case 1:
+				result = nng_pair1_open(&socket_);
+				break;
+		}
 		if(result != 0) {
 			ofLogError("ofxNNGPair") << "failed to open socket; " << nng_strerror(result);
 			return false;
@@ -105,16 +129,25 @@ public:
 		nng_setopt_bool(socket_, NNG_OPT_PAIR1_POLY, s.polyamorous_mode);
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
-			ofAddListener(ofEvents().update, this, &Pair1::update);
+			ofAddListener(ofEvents().update, this, &Pair::update);
 		}
-		nng_aio_alloc(&aio_, &Pair1::receive, this);
+		nng_aio_alloc(&aio_, &Pair::receive, this);
 		nng_recv_aio(socket_, aio_);
 		return true;
 	}
 	template<typename T>
 	void setupAsListener(const Settings &s, const std::function<void(const T&, nng_pipe)> &callback) {
 		int result;
-		result = nng_pair1_open(&socket_);
+		switch(s.version) {
+			case 0:
+				result = nng_pair0_open(&socket_);
+				break;
+			default:
+				ofLogWarning("ofxNNGPair") << "version number must be 0 or 1. setting up as version 1.";
+			case 1:
+				result = nng_pair1_open(&socket_);
+				break;
+		}
 		if(result != 0) {
 			ofLogError("ofxNNGPair") << "failed to open socket; " << nng_strerror(result);
 			return false;
@@ -132,9 +165,9 @@ public:
 		nng_setopt_bool(socket_, NNG_OPT_PAIR1_POLY, s.polyamorous_mode);
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
-			ofAddListener(ofEvents().update, this, &Pair1::update);
+			ofAddListener(ofEvents().update, this, &Pair::update);
 		}
-		nng_aio_alloc(&aio_, &Pair1::receive, this);
+		nng_aio_alloc(&aio_, &Pair::receive, this);
 		nng_recv_aio(socket_, aio_);
 		return true;
 	}
@@ -181,7 +214,7 @@ private:
 	ofThreadChannel<nng_msg*> channel_;
 	
 	static void receive(void *arg) {
-		auto me = (Pair1*)arg;
+		auto me = (Pair*)arg;
 		auto result = nng_aio_result(me->aio_);
 		if(result != 0) {
 			ofLogError("ofxNNGPair") << "failed to receive message; " << nng_strerror(result);
@@ -205,6 +238,4 @@ private:
 		}
 	}
 };
-	
-using Pair = Pair1;
 }}
