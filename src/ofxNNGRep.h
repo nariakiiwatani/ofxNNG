@@ -8,6 +8,7 @@
 #include "ASyncWork.h"
 #include "ofxNNGParseFunctions.h"
 #include "ofxNNGConvertFunctions.h"
+#include "ofThreadChannel.h"
 
 namespace ofx {
 namespace nng {
@@ -19,9 +20,11 @@ public:
 		nng_listener *listener=nullptr;
 		bool blocking=false;
 		int max_queue=16;
+		
+		bool allow_callback_from_other_thread=false;
 	};
 	template<typename Request, typename Response>
-	bool setup(const Settings &s, const std::function<Response(const Request&)> &make_reply) {
+	bool setup(const Settings &s, const std::function<Response(const Request&)> &callback) {
 		int result;
 		result = nng_rep0_open(&socket_);
 		if(result != 0) {
@@ -40,14 +43,18 @@ public:
 			ofLogError("ofxNNGReq") << "failed to create mutex; " << nng_strerror(result);
 			return false;
 		}
-		make_reply_ = [make_reply](nng_msg *msg) {
+		callback_ = [callback](nng_msg *msg) {
 			Request req = util::parse<Request>(msg);
-			Response res = make_reply(req);
+			Response res = callback(req);
 			if(!util::convert(res, msg)) {
 				ofLogError("ofxNNGRep") << "failed to convert message";
 			}
 			return msg;
 		};
+		async_ = s.allow_callback_from_other_thread;
+		if(!async_) {
+			ofAddListener(ofEvents().update, this, &Rep::update);
+		}
 		work_.initialize(s.max_queue, &Rep::async, this);
 		activateNewReceiver();
 		return true;
@@ -55,8 +62,10 @@ public:
 private:
 	nng_socket socket_;
 	aio::WorkPool work_;
-	std::function<nng_msg*(nng_msg*)> make_reply_;
+	std::function<nng_msg*(nng_msg*)> callback_;
 	nng_mtx *mtx_;
+	bool async_;
+	ofThreadChannel<aio::Work*> channel_;
 	
 	static void async(void *arg) {
 		auto work = (aio::Work*)arg;
@@ -69,11 +78,12 @@ private:
 					return;
 				}
 				me->activateNewReceiver();
-				auto msg = nng_aio_get_msg(work->aio);
-				msg = me->make_reply_(msg);
-				nng_aio_set_msg(work->aio, msg);
-				work->state = aio::SEND;
-				nng_ctx_send(work->ctx, work->aio);
+				if(me->async_) {
+					me->reply(work);
+				}
+				else {
+					me->channel_.send(work);
+				}
 			}	break;
 			case aio::SEND: {
 				auto result = nng_aio_result(work->aio);
@@ -86,6 +96,12 @@ private:
 				work->release();
 				nng_mtx_unlock(me->mtx_);
 			}	break;
+		}
+	}
+	void update(ofEventArgs&) {
+		aio::Work *work;
+		while(channel_.tryReceive(work)) {
+			reply(work);
 		}
 	}
 	bool activateNewReceiver() {
@@ -101,6 +117,13 @@ private:
 		work->state = aio::RECV;
 		nng_ctx_recv(work->ctx, work->aio);
 		return true;
+	}
+	void reply(aio::Work *work) {
+		auto msg = nng_aio_get_msg(work->aio);
+		msg = callback_(msg);
+		nng_aio_set_msg(work->aio, msg);
+		work->state = aio::SEND;
+		nng_ctx_send(work->ctx, work->aio);
 	}
 };
 }}
