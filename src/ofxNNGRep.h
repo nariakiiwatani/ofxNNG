@@ -56,7 +56,11 @@ public:
 			ofAddListener(ofEvents().update, this, &Rep::update);
 		}
 		work_.initialize(s.max_queue, &Rep::async, this);
-		activateNewReceiver();
+		while(auto work = work_.getUnused()) {
+			nng_ctx_open(&work->ctx, socket_);
+			work->state = aio::RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+		}
 		return true;
 	}
 private:
@@ -77,7 +81,6 @@ private:
 					ofLogError("ofxNNGRep") << "failed to receive message; " << nng_strerror(result);
 					return;
 				}
-				me->activateNewReceiver();
 				if(me->async_) {
 					me->reply(work);
 				}
@@ -91,10 +94,8 @@ private:
 					ofLogError("ofxNNGRep") << "failed to send message; " << nng_strerror(result);
 					break;
 				}
-				nng_ctx_close(work->ctx);
-				nng_mtx_lock(me->mtx_);
-				work->release();
-				nng_mtx_unlock(me->mtx_);
+				work->state = aio::RECV;
+				nng_ctx_recv(work->ctx, work->aio);
 			}	break;
 		}
 	}
@@ -103,20 +104,6 @@ private:
 		while(channel_.tryReceive(work)) {
 			reply(work);
 		}
-	}
-	bool activateNewReceiver() {
-		aio::Work *work = nullptr;
-		nng_mtx_lock(mtx_);
-		work = work_.getUnused();
-		nng_mtx_unlock(mtx_);
-		if(!work) {
-			ofLogWarning("ofxNNGRep") << "no unused work";
-			return false;
-		}
-		nng_ctx_open(&work->ctx, socket_);
-		work->state = aio::RECV;
-		nng_ctx_recv(work->ctx, work->aio);
-		return true;
 	}
 	void reply(aio::Work *work) {
 		auto msg = nng_aio_get_msg(work->aio);
