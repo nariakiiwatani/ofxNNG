@@ -27,6 +27,7 @@ public:
 		};
 		bool blocking=false;
 		
+		bool polyamorous_mode=true;
 		bool allow_callback_from_other_thread=false;
 	};
 	template<typename T>
@@ -47,6 +48,7 @@ public:
 		callback_ = [callback](nng_msg *msg) {
 			callback(util::parse<T>(msg));
 		};
+		nng_setopt_bool(socket_, NNG_OPT_PAIR1_POLY, s.polyamorous_mode);
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
 			ofAddListener(ofEvents().update, this, &Pair1::update);
@@ -73,6 +75,61 @@ public:
 		callback_ = [callback](nng_msg *msg) {
 			callback(util::parse<T>(msg));
 		};
+		nng_setopt_bool(socket_, NNG_OPT_PAIR1_POLY, s.polyamorous_mode);
+		async_ = s.allow_callback_from_other_thread;
+		if(!async_) {
+			ofAddListener(ofEvents().update, this, &Pair1::update);
+		}
+		nng_aio_alloc(&aio_, &Pair1::receive, this);
+		nng_recv_aio(socket_, aio_);
+		return true;
+	}
+	template<typename T>
+	bool setupAsDialer(const Settings &s, const std::function<void(const T&, nng_pipe)> &callback) {
+		int result;
+		result = nng_pair1_open(&socket_);
+		if(result != 0) {
+			ofLogError("ofxNNGPair") << "failed to open socket; " << nng_strerror(result);
+			return false;
+		}
+		int flags = 0;
+		if(!s.blocking) flags |= NNG_FLAG_NONBLOCK;
+		result = nng_dial(socket_, s.url.data(), s.dialer, flags);
+		if(result != 0) {
+			ofLogError("ofxNNGPair") << "failed to create dialer; " << nng_strerror(result);
+			return false;
+		}
+		callback_ = [callback](nng_msg *msg) {
+			callback(util::parse<T>(msg), nng_msg_get_pipe(msg));
+		};
+		nng_setopt_bool(socket_, NNG_OPT_PAIR1_POLY, s.polyamorous_mode);
+		async_ = s.allow_callback_from_other_thread;
+		if(!async_) {
+			ofAddListener(ofEvents().update, this, &Pair1::update);
+		}
+		nng_aio_alloc(&aio_, &Pair1::receive, this);
+		nng_recv_aio(socket_, aio_);
+		return true;
+	}
+	template<typename T>
+	void setupAsListener(const Settings &s, const std::function<void(const T&, nng_pipe)> &callback) {
+		int result;
+		result = nng_pair1_open(&socket_);
+		if(result != 0) {
+			ofLogError("ofxNNGPair") << "failed to open socket; " << nng_strerror(result);
+			return false;
+		}
+		int flags = 0;
+		if(!s.blocking) flags |= NNG_FLAG_NONBLOCK;
+		result = nng_listen(socket_, s.url.data(), s.listener, flags);
+		if(result != 0) {
+			ofLogError("ofxNNGPair") << "failed to create listener; " << nng_strerror(result);
+			return false;
+		}
+		callback_ = [callback](nng_msg *msg) {
+			callback(util::parse<T>(msg), nng_msg_get_pipe(msg));
+		};
+		nng_setopt_bool(socket_, NNG_OPT_PAIR1_POLY, s.polyamorous_mode);
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
 			ofAddListener(ofEvents().update, this, &Pair1::update);
@@ -85,6 +142,24 @@ public:
 	bool send(const T &data) {
 		nng_msg *msg;
 		nng_msg_alloc(&msg, 0);
+		if(!util::convert(data, msg)) {
+			ofLogError("ofxNNGPair") << "failed to convert message";
+			return false;
+		}
+		int result;
+		result = nng_sendmsg(socket_, msg, NNG_FLAG_NONBLOCK);
+		if(result != 0) {
+			ofLogError("ofxNNGPair") << "failed to send message; " << nng_strerror(result);
+			nng_msg_free(msg);
+			return false;
+		}
+		return true;
+	}
+	template<typename T>
+	bool send(const T &data, nng_pipe pipe) {
+		nng_msg *msg;
+		nng_msg_alloc(&msg, 0);
+		nng_msg_set_pipe(msg, pipe);
 		if(!util::convert(data, msg)) {
 			ofLogError("ofxNNGPair") << "failed to convert message";
 			return false;
