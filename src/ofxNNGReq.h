@@ -60,13 +60,13 @@ public:
 			return false;
 		}
 		nng_aio_set_msg(work->aio, msg);
-		work->state = aio::SEND;
-		nng_ctx_send(work->ctx, work->aio);
 		nng_mtx_lock(mtx_);
 		callback_[nng_ctx_id(work->ctx)] = [callback](nng_msg *msg) {
 			callback(util::parse<ofBuffer>(msg));
 		};
 		nng_mtx_unlock(mtx_);
+		work->state = aio::SEND;
+		nng_ctx_send(work->ctx, work->aio);
 		return true;
 	}
 private:

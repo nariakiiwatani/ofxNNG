@@ -3,7 +3,6 @@
 #include <stddef.h>
 #include "nng.h"
 #include "reqrep0/rep.h"
-#include "supplemental/util/platform.h"
 #include "ofLog.h"
 #include "ASyncWork.h"
 #include "ofxNNGParseFunctions.h"
@@ -38,11 +37,6 @@ public:
 			ofLogError("ofxNNGRep") << "failed to create listener; " << nng_strerror(result);
 			return false;
 		}
-		result = nng_mtx_alloc(&mtx_);
-		if(result != 0) {
-			ofLogError("ofxNNGReq") << "failed to create mutex; " << nng_strerror(result);
-			return false;
-		}
 		callback_ = [callback](nng_msg *msg) {
 			Request req = util::parse<Request>(msg);
 			Response res = callback(req);
@@ -67,7 +61,6 @@ private:
 	nng_socket socket_;
 	aio::WorkPool work_;
 	std::function<nng_msg*(nng_msg*)> callback_;
-	nng_mtx *mtx_;
 	bool async_;
 	ofThreadChannel<aio::Work*> channel_;
 	
