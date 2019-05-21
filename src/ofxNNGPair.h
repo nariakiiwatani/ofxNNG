@@ -46,7 +46,7 @@ public:
 	bool send(const T &data, nng_pipe pipe=NNG_PIPE_INITIALIZER) {
 		nng_msg *msg;
 		nng_msg_alloc(&msg, 0);
-		if(nng_pipe_id(pipe) != nng_pipe_id(NNG_PIPE_INITIALIZER)) {
+		if(nng_pipe_id(pipe) != -1) {	// nng_pipe_id returns -1 for invalid pipe
 			nng_msg_set_pipe(msg, pipe);
 		}
 		if(!util::convert(data, msg)) {
