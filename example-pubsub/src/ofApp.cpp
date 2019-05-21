@@ -5,11 +5,10 @@ using namespace ofx::nng;
 //--------------------------------------------------------------
 void ofApp::setup(){
 	Pub::Settings pubs;
-	pubs.url = "inproc://test";
 	pub_.setup(pubs);
+	pub_.listen("inproc://test");
 
 	Sub::Settings subs;
-	subs.url = "inproc://test";
 	sub_.resize(8);
 	for(auto &s : sub_) {
 		s = std::make_shared<ofx::nng::Sub>();
@@ -17,6 +16,7 @@ void ofApp::setup(){
 			ofLogNotice("sub") << buffer.getText();
 		}));
 		s->subscribe(nullptr, 0);
+		s->dial("inproc://test");
 	}
 }
 

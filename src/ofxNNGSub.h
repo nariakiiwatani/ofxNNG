@@ -6,17 +6,14 @@
 #include "pubsub0/sub.h"
 #include "ASyncWork.h"
 #include "ofxNNGParseFunctions.h"
+#include "ofxNNGNode.h"
 
 namespace ofx {
 namespace nng {
-class Sub
+class Sub : public Node
 {
 public:
 	struct Settings {
-		std::string url;
-		nng_dialer *dialer=nullptr;
-		bool blocking=false;
-		
 		bool allow_callback_from_other_thread=false;
 	};
 	template<typename T>
@@ -25,13 +22,6 @@ public:
 		result = nng_sub0_open(&socket_);
 		if(result != 0) {
 			ofLogError("ofxNNGSub") << "failed to open socket;" << nng_strerror(result);
-			return false;
-		}
-		int flags = 0;
-		if(!s.blocking) flags |= NNG_FLAG_NONBLOCK;
-		result = nng_dial(socket_, s.url.data(), s.dialer, flags);
-		if(result != 0) {
-			ofLogError("ofxNNGSub") << "failed to create dialer; " << nng_strerror(result);
 			return false;
 		}
 		callback_ = [callback](nng_msg *msg) {
@@ -65,7 +55,6 @@ public:
 		return true;
 	}
 private:
-	nng_socket socket_;
 	nng_aio *aio_;
 	std::function<void(nng_msg*)> callback_;
 	bool async_;
