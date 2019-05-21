@@ -5,14 +5,14 @@ using namespace ofx::nng;
 //--------------------------------------------------------------
 void ofApp::setup(){
 	Push::Settings pushs;
-	pushs.url = "inproc://test";
 	push_.setup(pushs);
+	push_.listen("inproc://test");
 	
 	Pull::Settings pulls;
-	pulls.url = "inproc://test";
 	pull_.setup(pulls, std::function<void(const ofBuffer&)>([](const ofBuffer &buffer) {
 		ofLogNotice("pull") << buffer.getText();
 	}));
+	pull_.dial("inproc://test");
 }
 
 //--------------------------------------------------------------

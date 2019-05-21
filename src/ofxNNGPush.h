@@ -5,29 +5,20 @@
 #include "pipeline0/push.h"
 #include "ASyncWork.h"
 #include "ofxNNGConvertFunctions.h"
+#include "ofxNNGNode.h"
 
 namespace ofx {
 namespace nng {
-class Push
+class Push : public Node
 {
 public:
 	struct Settings {
-		std::string url;
-		nng_dialer *dialer=nullptr;
-		bool blocking=false;
 	};
 	bool setup(const Settings &s) {
 		int result;
 		result = nng_push0_open(&socket_);
 		if(result != 0) {
 			ofLogError("ofxNNGPush") << "failed to open socket; " << nng_strerror(result);
-			return false;
-		}
-		int flags = 0;
-		if(!s.blocking) flags |= NNG_FLAG_NONBLOCK;
-		result = nng_dial(socket_, s.url.data(), s.dialer, flags);
-		if(result != 0) {
-			ofLogError("ofxNNGPush") << "failed to create dialer; " << nng_strerror(result);
 			return false;
 		}
 		return true;
@@ -49,8 +40,6 @@ public:
 		}
 		return true;
 	}
-private:
-	nng_socket socket_;
 };
 }
 }

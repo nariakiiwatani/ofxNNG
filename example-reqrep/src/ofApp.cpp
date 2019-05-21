@@ -4,14 +4,14 @@ using namespace ofx::nng;
 //--------------------------------------------------------------
 void ofApp::setup(){
 	Rep::Settings reps;
-	reps.url = "inproc://test";
 	rep_.setup(reps, std::function<ofBuffer(const ofBuffer&)>([](const ofBuffer &buffer) {
 		return buffer;
 	}));
+	rep_.listen("inproc://test");
 
 	Req::Settings reqs;
-	reqs.url = "inproc://test";
 	req_.setup(reqs);
+	req_.dial("inproc://test");
 }
 
 //--------------------------------------------------------------

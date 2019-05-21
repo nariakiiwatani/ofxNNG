@@ -6,17 +6,14 @@
 #include "pipeline0/pull.h"
 #include "ASyncWork.h"
 #include "ofxNNGParseFunctions.h"
+#include "ofxNNGNode.h"
 
 namespace ofx {
 namespace nng {
-class Pull
+class Pull : public Node
 {
 public:
 	struct Settings {
-		std::string url;
-		nng_listener *listener=nullptr;
-		bool blocking=false;
-		
 		bool allow_callback_from_other_thread=false;
 	};
 	template<typename T>
@@ -25,13 +22,6 @@ public:
 		result = nng_pull0_open(&socket_);
 		if(result != 0) {
 			ofLogError("ofxNNGPull") << "failed to open socket;" << nng_strerror(result);
-			return false;
-		}
-		int flags = 0;
-		if(!s.blocking) flags |= NNG_FLAG_NONBLOCK;
-		result = nng_listen(socket_, s.url.data(), s.listener, flags);
-		if(result != 0) {
-			ofLogError("ofxNNGPull") << "failed to create listener; " << nng_strerror(result);
 			return false;
 		}
 		callback_ = [callback](nng_msg *msg) {
@@ -49,7 +39,6 @@ public:
 		if(aio_) nng_aio_free(aio_);
 	}
 private:
-	nng_socket socket_;
 	nng_aio *aio_;
 	std::function<void(nng_msg*)> callback_;
 	bool async_;
