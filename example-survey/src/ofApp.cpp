@@ -5,12 +5,11 @@ using namespace ofx::nng;
 //--------------------------------------------------------------
 void ofApp::setup(){
 	Surveyor::Settings surveys;
-	surveys.url = "inproc://test";
 	surveys.allow_callback_from_other_thread = false;
 	survey_.setup(surveys);
+	survey_.listen("inproc://test");
 
 	Respondent::Settings responds;
-	responds.url = "inproc://test";
 	respond_.resize(8);
 	for(auto &s : respond_) {
 		s = std::make_shared<ofx::nng::Respondent>();
@@ -18,6 +17,7 @@ void ofApp::setup(){
 			ofLogNotice("got survey: ") << buffer.getText();
 			return buffer;
 		}));
+		s->dial("inproc://test");
 	}
 }
 

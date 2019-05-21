@@ -8,18 +8,15 @@
 #include "ASyncWork.h"
 #include "ofxNNGConvertFunctions.h"
 #include "ofxNNGParseFunctions.h"
+#include "ofxNNGNode.h"
 
 namespace ofx {
 namespace nng {
-class Surveyor
+class Surveyor : public Node
 {
 public:
 	struct Settings {
-		std::string url;
-		nng_listener *listener=nullptr;
-		bool blocking=false;
 		int max_queue=16;
-
 		bool allow_callback_from_other_thread=false;
 	};
 	bool setup(const Settings &s) {
@@ -27,13 +24,6 @@ public:
 		result = nng_surveyor0_open(&socket_);
 		if(result != 0) {
 			ofLogError("ofxNNGSurveyor") << "failed to open socket; " << nng_strerror(result);
-			return false;
-		}
-		int flags = 0;
-		if(!s.blocking) flags |= NNG_FLAG_NONBLOCK;
-		result = nng_listen(socket_, s.url.data(), s.listener, flags);
-		if(result != 0) {
-			ofLogError("ofxNNGSurveyor") << "failed to create listener; " << nng_strerror(result);
 			return false;
 		}
 		result = nng_mtx_alloc(&work_mtx_);
@@ -84,7 +74,6 @@ public:
 		return true;
 	}
 private:
-	nng_socket socket_;
 	aio::WorkPool work_;
 	std::map<aio::Work*, std::function<void(nng_msg*)>> callback_;
 	nng_mtx *work_mtx_, *callback_mtx_;
