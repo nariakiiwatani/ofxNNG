@@ -4,8 +4,9 @@ using namespace ofx::nng;
 //--------------------------------------------------------------
 void ofApp::setup(){
 	Rep::Settings reps;
-	rep_.setup(reps, std::function<ofBuffer(const ofBuffer&)>([](const ofBuffer &buffer) {
-		return buffer;
+	rep_.setup(reps, std::function<bool(const ofBuffer&, ofBuffer&)>([](const ofBuffer &buffer, ofBuffer &dst) {
+		dst = buffer;
+		return true;
 	}));
 	rep_.listen("inproc://test");
 
