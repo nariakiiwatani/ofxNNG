@@ -12,6 +12,8 @@ In some cases you have to call them with `callback`.
 
 
 ### protocols
+- bus
+	- ofxNNGBus
 - pair
 	- ofxNNGPair
 - pipeline(push/pull)
