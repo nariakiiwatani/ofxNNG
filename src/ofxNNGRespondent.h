@@ -20,7 +20,7 @@ public:
 		bool allow_callback_from_other_thread=false;
 	};
 	template<typename Request, typename Response>
-	bool setup(const Settings &s, const std::function<Response(const Request&)> &callback) {
+	bool setup(const Settings &s, const std::function<bool(const Request&, Response&)> &callback) {
 		int result;
 		result = nng_respondent0_open(&socket_);
 		if(result != 0) {
@@ -29,11 +29,15 @@ public:
 		}
 		callback_ = [callback](nng_msg *msg) {
 			Request req = util::parse<Request>(msg);
-			Response res = callback(req);
+			Response res;
+			if(!callback(req, res)) {
+				return false;
+			}
 			if(!util::convert(res, msg)) {
 				ofLogError("ofxNNGRespondent") << "failed to convert message";
+				return false;
 			}
-			return msg;
+			return true;
 		};
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
@@ -49,7 +53,7 @@ public:
 	}
 private:
 	aio::WorkPool work_;
-	std::function<nng_msg*(nng_msg*)> callback_;
+	std::function<bool(nng_msg*)> callback_;
 	bool async_;
 	ofThreadChannel<aio::Work*> channel_;
 	
@@ -93,7 +97,10 @@ private:
 	}
 	void reply(aio::Work *work) {
 		auto msg = nng_aio_get_msg(work->aio);
-		msg = callback_(msg);
+		if(!callback_(msg)) {
+			nng_msg_free(msg);
+			return;
+		}
 		nng_aio_set_msg(work->aio, msg);
 		work->state = aio::SEND;
 		nng_ctx_send(work->ctx, work->aio);

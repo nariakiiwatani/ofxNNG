@@ -13,9 +13,10 @@ void ofApp::setup(){
 	respond_.resize(8);
 	for(auto &s : respond_) {
 		s = std::make_shared<ofx::nng::Respondent>();
-		s->setup(responds, std::function<ofBuffer(const ofBuffer&)>([](const ofBuffer &buffer) {
+		s->setup(responds, std::function<bool(const ofBuffer&, ofBuffer&)>([](const ofBuffer &buffer, ofBuffer& dst) {
+			dst.set(buffer);
 			ofLogNotice("got survey: ") << buffer.getText();
-			return buffer;
+			return true;
 		}));
 		s->dial("inproc://test");
 	}
