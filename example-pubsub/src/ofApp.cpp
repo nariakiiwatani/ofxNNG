@@ -12,10 +12,10 @@ void ofApp::setup(){
 	sub_.resize(8);
 	for(auto &s : sub_) {
 		s = std::make_shared<ofx::nng::Sub>();
-		s->setup(subs, std::function<void(const ofBuffer&)>([](const ofBuffer &buffer) {
+		s->setup(subs);
+		s->subscribe("", std::function<void(const ofBuffer&)>([](const ofBuffer &buffer) {
 			ofLogNotice("sub") << buffer.getText();
 		}));
-		s->subscribe(nullptr, 0);
 		s->dial("inproc://test");
 	}
 }
