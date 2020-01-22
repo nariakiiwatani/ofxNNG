@@ -25,11 +25,22 @@ public:
 	}
 	template<typename T>
 	bool send(const T &data) {
+		return send(nullptr, 0, data);
+	}
+	template<typename T>
+	bool send(const std::string &topic, const T &data) {
+		return send(topic.c_str(), topic.size(), data);
+	}
+	template<typename T>
+	bool send(const void *topic, std::size_t topic_length, const T &data) {
 		nng_msg *msg;
 		nng_msg_alloc(&msg, 0);
 		if(!util::convert(data, msg)) {
 			ofLogError("ofxNNGPub") << "failed to convert message";
 			return false;
+		}
+		if(topic != nullptr && topic_length > 0) {
+			nng_msg_insert(msg, topic, topic_length);
 		}
 		int result;
 		result = nng_sendmsg(socket_, msg, 0);
