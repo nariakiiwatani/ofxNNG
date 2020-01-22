@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ofFileUtils.h"
+#include "ofJson.h"
 #include "nng.h"
 
 namespace ofx {
@@ -26,6 +27,10 @@ namespace util {
 		nng_msg_clear(dst);
 		nng_msg_append(dst, src.getData(), src.size());
 		return true;
+	}
+	template<>
+	inline bool convert(const ofJson &src, nng_msg *dst) {
+		return convert(src.dump(), dst);
 	}
 }
 }

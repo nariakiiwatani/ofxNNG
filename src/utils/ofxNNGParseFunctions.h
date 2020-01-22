@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ofFileUtils.h"
+#include "ofJson.h"
 #include "nng.h"
 
 namespace ofx {
@@ -24,6 +25,10 @@ namespace util {
 		auto body = nng_msg_body(const_cast<nng_msg*>(src));
 		auto len = nng_msg_len(src);
 		return ofBuffer((char*)body, len);
+	}
+	template<>
+	inline ofJson parse(const nng_msg *src) {
+		return ofJson::parse(parse<std::string>(src));
 	}
 }
 }
