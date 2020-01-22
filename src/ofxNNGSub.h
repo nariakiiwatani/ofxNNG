@@ -42,19 +42,38 @@ public:
 	}
 	template<typename T>
 	bool subscribe(const std::string &topic, const std::function<void(const T&)> &callback) {
-		return subscribe(topic.data(), topic.length(), callback);
+		return subscribe(topic.data(), topic.length(), [callback](nng_msg *msg) {
+			callback(util::parse<T>(msg));
+		});
+	}
+	template<typename T>
+	bool subscribe(const std::string &topic, const std::function<void(const std::string &topic, const T&)> &callback) {
+		return subscribe(topic.data(), topic.length(), [callback, topic](nng_msg *msg) {
+			nng_msg_trim(msg, topic.size());
+			callback(topic, util::parse<T>(msg));
+		});
 	}
 	template<typename T>
 	bool subscribe(const void *topic, std::size_t topic_length, const std::function<void(const T&)> &callback) {
+		return subscribe(topic, topic_length, [callback](nng_msg *msg) {
+			callback(util::parse<T>(msg));
+		});
+	}
+	template<typename T>
+	bool subscribe(const void *topic, std::size_t topic_length, const std::function<void(const void *topic, const T&)> &callback) {
+		return subscribe(topic, topic_length, [callback, topic, topic_length](nng_msg *msg) {
+			nng_msg_trim(msg, topic_length);
+			callback(topic, util::parse<T>(msg));
+		});
+	}
+	bool subscribe(const void *topic, std::size_t topic_length, std::function<void(nng_msg*)> callback) {
 		int result = nng_setopt(socket_, NNG_OPT_SUB_SUBSCRIBE, topic, topic_length);
 		if(result != 0) {
 			ofLogError("ofxNNGSub") << "failed to subscribe topic; " << nng_strerror(result);
 			return false;
 		}
 		ofBuffer data((const char*)topic, topic_length);
-		callback_.push_back(std::make_pair(data, [callback](nng_msg *msg) {
-			callback(util::parse<T>(msg));
-		}));
+		callback_.push_back(std::make_pair(data, callback));
 		return true;
 	}
 	bool unsubscribe(const std::string &topic) {
