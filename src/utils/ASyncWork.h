@@ -1,6 +1,7 @@
 #pragma once
 
 #include "nng.h"
+#include <vector>
 
 namespace ofx {
 namespace nng {

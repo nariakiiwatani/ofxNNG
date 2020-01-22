@@ -5,6 +5,7 @@
 #include "pubsub0/pub.h"
 #include "ofxNNGConvertFunctions.h"
 #include "ofxNNGNode.h"
+#include "ofLog.h"
 
 namespace ofx {
 namespace nng {
