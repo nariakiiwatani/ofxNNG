@@ -17,6 +17,7 @@ class Req : public Node
 public:
 	struct Settings {
 		int max_queue=16;
+		nng_duration timeout_milliseconds=NNG_DURATION_DEFAULT;
 		bool allow_callback_from_other_thread=false;
 	};
 	bool setup(const Settings &s) {
@@ -36,6 +37,7 @@ public:
 			ofLogError("ofxNNGReq") << "failed to create mutex; " << nng_strerror(result);
 			return false;
 		}
+		timeout_ = s.timeout_milliseconds;
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
 			ofAddListener(ofEvents().update, this, &Req::update);
@@ -66,6 +68,7 @@ public:
 			callback(util::parse<ofBuffer>(msg));
 		};
 		nng_mtx_unlock(callback_mtx_);
+		nng_aio_set_timeout(work->aio, timeout_);
 		work->state = aio::SEND;
 		nng_ctx_send(work->ctx, work->aio);
 		return true;
@@ -76,6 +79,7 @@ private:
 	nng_mtx *work_mtx_, *callback_mtx_;
 	bool async_;
 	ofThreadChannel<aio::Work*> channel_;
+	nng_duration timeout_;
 	
 	static void async(void *arg) {
 		auto work = (aio::Work*)arg;
@@ -85,6 +89,7 @@ private:
 				auto result = nng_aio_result(work->aio);
 				if(result != 0) {
 					ofLogError("ofxNNGReq") << "failed to send message; " << nng_strerror(result);
+					me->closeWork(work);
 					break;
 				}
 				work->state = aio::RECV;
@@ -94,6 +99,7 @@ private:
 				auto result = nng_aio_result(work->aio);
 				if(result != 0) {
 					ofLogError("ofxNNGReq") << "failed to receive message; " << nng_strerror(result);
+					me->closeWork(work);
 					return;
 				}
 				if(me->async_) {
@@ -118,6 +124,9 @@ private:
 		callback_.erase(nng_ctx_id(work->ctx));
 		nng_mtx_unlock(callback_mtx_);
 		nng_msg_free(msg);
+		closeWork(work);
+	}
+	void closeWork(aio::Work *work) {
 		nng_ctx_close(work->ctx);
 		nng_mtx_lock(work_mtx_);
 		work->release();
