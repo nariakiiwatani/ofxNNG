@@ -17,6 +17,7 @@ class Surveyor : public Node
 public:
 	struct Settings {
 		int max_queue=16;
+		nng_duration timeout_milliseconds=NNG_DURATION_DEFAULT;
 		bool allow_callback_from_other_thread=false;
 	};
 	bool setup(const Settings &s) {
@@ -36,6 +37,7 @@ public:
 			ofLogError("ofxNNGSurveyor") << "failed to create mutex; " << nng_strerror(result);
 			return false;
 		}
+		timeout_ = s.timeout_milliseconds;
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
 			ofAddListener(ofEvents().update, this, &Surveyor::update);
@@ -69,6 +71,7 @@ public:
 			callback(util::parse<ofBuffer>(msg));
 		};
 		nng_mtx_unlock(callback_mtx_);
+		nng_aio_set_timeout(work->aio, timeout_);
 		work->state = aio::SEND;
 		nng_ctx_send(work->ctx, work->aio);
 		return true;
@@ -88,6 +91,7 @@ private:
 		nng_msg *msg;
 	};
 	ofThreadChannel<AsyncWork> channel_;
+	nng_duration timeout_;
 	
 	static void async(void *arg) {
 		auto work = (aio::Work*)arg;
@@ -108,7 +112,12 @@ private:
 			case aio::RECV: {
 				auto result = nng_aio_result(work->aio);
 				if(result != 0) {
-					ofLogError("ofxNNGSurveyor") << "failed to receive message; " << nng_strerror(result);
+					if(result == NNG_ETIMEDOUT) {
+						ofLogVerbose("ofxNNGSurveyor") << nng_strerror(result);
+					}
+					else {
+						ofLogError("ofxNNGSurveyor") << "failed to receive message; " << nng_strerror(result);
+					}
 					nng_mtx_lock(me->work_mtx_);
 					work->release();
 					nng_mtx_unlock(me->work_mtx_);
