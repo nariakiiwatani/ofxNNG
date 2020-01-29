@@ -42,31 +42,50 @@ public:
 	}
 	template<typename T>
 	bool subscribe(const std::string &topic, const std::function<void(const T&)> &callback) {
-		return subscribe(topic.data(), topic.length(), [callback](nng_msg *msg) {
+		return subscribe(topic.data(), topic.length(), [callback](const nng_msg *msg) {
 			callback(util::parse<T>(msg));
 		});
 	}
 	template<typename T>
 	bool subscribe(const std::string &topic, const std::function<void(const std::string &topic, const T&)> &callback) {
-		return subscribe(topic.data(), topic.length(), [callback, topic](nng_msg *msg) {
-			nng_msg_trim(msg, topic.size());
-			callback(topic, util::parse<T>(msg));
+		auto topic_length = topic.length();
+		return subscribe(topic.data(), topic_length, [callback, topic, topic_length](const nng_msg *msg) {
+			if(topic_length > 0) {
+				nng_msg *copy;
+				nng_msg_alloc(&copy, 0);
+				nng_msg_dup(&copy, msg);
+				nng_msg_trim(copy, topic_length);
+				callback(topic, util::parse<T>(copy));
+				nng_msg_free(copy);
+			}
+			else {
+				callback(topic, util::parse<T>(msg));
+			}
 		});
 	}
 	template<typename T>
 	bool subscribe(const void *topic, std::size_t topic_length, const std::function<void(const T&)> &callback) {
-		return subscribe(topic, topic_length, [callback](nng_msg *msg) {
+		return subscribe(topic, topic_length, [callback](const nng_msg *msg) {
 			callback(util::parse<T>(msg));
 		});
 	}
 	template<typename T>
 	bool subscribe(const void *topic, std::size_t topic_length, const std::function<void(const void *topic, const T&)> &callback) {
-		return subscribe(topic, topic_length, [callback, topic, topic_length](nng_msg *msg) {
-			nng_msg_trim(msg, topic_length);
-			callback(topic, util::parse<T>(msg));
+		return subscribe(topic, topic_length, [callback, topic, topic_length](const nng_msg *msg) {
+			if(topic_length > 0) {
+				nng_msg *copy;
+				nng_msg_alloc(&copy, 0);
+				nng_msg_dup(&copy, msg);
+				nng_msg_trim(copy, topic_length);
+				callback(topic, util::parse<T>(copy));
+				nng_msg_free(copy);
+			}
+			else {
+				callback(topic, util::parse<T>(msg));
+			}
 		});
 	}
-	bool subscribe(const void *topic, std::size_t topic_length, std::function<void(nng_msg*)> callback) {
+	bool subscribe(const void *topic, std::size_t topic_length, std::function<void(const nng_msg*)> callback) {
 		int result = nng_setopt(socket_, NNG_OPT_SUB_SUBSCRIBE, topic, topic_length);
 		if(result != 0) {
 			ofLogError("ofxNNGSub") << "failed to subscribe topic; " << nng_strerror(result);
@@ -86,14 +105,14 @@ public:
 			return false;
 		}
 		ofBuffer data((const char*)topic, topic_length);
-		callback_.erase(std::remove_if(std::begin(callback_), std::end(callback_), [data](std::pair<ofBuffer, std::function<void(nng_msg*)>> &kv) {
+		callback_.erase(std::remove_if(std::begin(callback_), std::end(callback_), [data](std::pair<ofBuffer, std::function<void(const nng_msg*)>> &kv) {
 			return kv.first.size() == data.size() && memcmp(kv.first.getData(), data.getData(), data.size()) == 0;
 		}), std::end(callback_));
 		return true;
 	}
 private:
 	nng_aio *aio_;
-	std::vector<std::pair<ofBuffer, std::function<void(nng_msg*)>>> callback_;
+	std::vector<std::pair<ofBuffer, std::function<void(const nng_msg*)>>> callback_;
 	bool async_;
 	ofThreadChannel<nng_msg*> channel_;
 	static void receive(void *arg) {
@@ -122,7 +141,7 @@ private:
 	}
 	void dispatch(nng_msg *msg) {
 		auto body = nng_msg_body(msg);
-		std::for_each(std::begin(callback_), std::end(callback_), [body,msg](const std::pair<ofBuffer, std::function<void(nng_msg*)>> &kv) {
+		std::for_each(std::begin(callback_), std::end(callback_), [body,msg](const std::pair<ofBuffer, std::function<void(const nng_msg*)>> &kv) {
 			if(memcmp(body, kv.first.getData(), kv.first.size())==0) {
 				kv.second(msg);
 			}
