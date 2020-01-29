@@ -100,7 +100,7 @@ private:
 		auto me = (Sub*)arg;
 		auto result = nng_aio_result(me->aio_);
 		if(result != 0) {
-			ofLogError("ofxNNGRep") << "failed to receive message; " << nng_strerror(result);
+			ofLogError("ofxNNGSub") << "failed to receive message; " << nng_strerror(result);
 			return;
 		}
 		auto msg = nng_aio_get_msg(me->aio_);
