@@ -6,13 +6,13 @@ using namespace ofx::nng;
 void ofApp::setup(){
 	Push::Settings pushs;
 	push_.setup(pushs);
-	push_.listen("inproc://test");
+	push_.createListener("inproc://test")->start();
 	
 	Pull::Settings pulls;
-	pull_.setup(pulls, std::function<void(const ofBuffer&)>([](const ofBuffer &buffer) {
+	pull_.setup<ofBuffer>(pulls, [](const ofBuffer &buffer) {
 		ofLogNotice("pull") << buffer.getText();
-	}));
-	pull_.dial("inproc://test");
+	});
+	pull_.createDialer("inproc://test")->start();
 }
 
 //--------------------------------------------------------------

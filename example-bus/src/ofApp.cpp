@@ -9,14 +9,14 @@ void ofApp::setup(){
 	for(int i = 0; i < bus_.size(); ++i) {
 		auto &b = bus_[i];
 		b = std::make_shared<Bus>();
-		b->setup(buss, std::function<void(const ofBuffer&)>([i](const ofBuffer &buffer) {
+		b->setup<ofBuffer>(buss, [i](const ofBuffer &buffer) {
 			cout << "node" << i << ": receive:" << buffer.getText() << endl;
-		}));
+		});
 		std::string recv_url = "inproc://bus"+ofToString(i);
-		b->listen(recv_url);
+		b->createListener(recv_url)->start();
 		for(int j = i+1; j < bus_.size(); ++j) {
 			std::string send_url = "inproc://bus"+ofToString(j);
-			b->dial(send_url);
+			b->createDialer(send_url)->start();
 		}
 	}
 }

@@ -7,18 +7,18 @@ void ofApp::setup(){
 	Surveyor::Settings surveys;
 	surveys.allow_callback_from_other_thread = false;
 	survey_.setup(surveys);
-	survey_.listen("inproc://test");
+	survey_.createListener("inproc://test")->start();
 
 	Respondent::Settings responds;
 	respond_.resize(8);
-	for(auto &s : respond_) {
-		s = std::make_shared<ofx::nng::Respondent>();
-		s->setup(responds, std::function<bool(const ofBuffer&, ofBuffer&)>([](const ofBuffer &buffer, ofBuffer& dst) {
+	for(auto &r : respond_) {
+		r = std::make_shared<ofx::nng::Respondent>();
+		r->setup<ofBuffer, ofBuffer>(responds, [](const ofBuffer &buffer, ofBuffer& dst) {
 			dst.set(buffer);
 			ofLogNotice("got survey: ") << buffer.getText();
 			return true;
-		}));
-		s->dial("inproc://test");
+		});
+		r->createDialer("inproc://test")->start();
 	}
 }
 
@@ -36,9 +36,9 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
 	ofBuffer buffer;
 	buffer.set(ofToString((char)key));
-	survey_.send(buffer, std::function<void(const ofBuffer&)>([](const ofBuffer &buffer) {
+	survey_.send<ofBuffer, ofBuffer>(buffer, [](const ofBuffer &buffer) {
 		ofLogNotice("got respond: ") << buffer.getText();
-	}));
+	});
 }
 
 //--------------------------------------------------------------
