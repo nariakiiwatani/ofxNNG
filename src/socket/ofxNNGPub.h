@@ -3,9 +3,9 @@
 #include <stddef.h>
 #include "nng.h"
 #include "pubsub0/pub.h"
-#include "ofxNNGConvertFunctions.h"
 #include "ofxNNGNode.h"
 #include "ofLog.h"
+#include "ofxNNGMessage.h"
 
 namespace ofx {
 namespace nng {
@@ -24,32 +24,30 @@ public:
 		return true;
 	}
 	template<typename T>
-	bool send(const T &data) {
-		return send(nullptr, 0, data);
+	bool send(T &&msg) {
+		return send(std::forward<Message>(to_msg(msg)));
 	}
-	template<typename T>
-	bool send(const std::string &topic, const T &data) {
-		return send(topic.c_str(), topic.size(), data);
-	}
-	template<typename T>
-	bool send(const void *topic, std::size_t topic_length, const T &data) {
-		nng_msg *msg;
-		nng_msg_alloc(&msg, 0);
-		if(!util::convert(data, msg)) {
-			ofLogError("ofxNNGPub") << "failed to convert message";
-			return false;
-		}
-		if(topic != nullptr && topic_length > 0) {
-			nng_msg_insert(msg, topic, topic_length);
-		}
+	bool send(Message &&msg) {
 		int result;
 		result = nng_sendmsg(socket_, msg, 0);
 		if(result != 0) {
 			ofLogError("ofxNNGPub") << "failed to send message; " << nng_strerror(result);
-			nng_msg_free(msg);
 			return false;
 		}
+		msg.setSentFlag();
 		return true;
+	}
+	template<typename T>
+	bool send(const std::string &topic, T &&msg) {
+		return send(topic, std::move(adl_converter<T>::to_msg(msg)));
+	}
+	template<>
+	bool send(const std::string &topic, Message &&msg) {
+		return send(topic.data(), topic.length(), std::forward<Message>(msg));
+	}
+	bool send(const void *topic_data, std::size_t topic_size, Message &&msg) {
+		nng_msg_insert(msg, topic_data, topic_size);
+		return send(std::forward<Message>(msg));
 	}
 };
 }
