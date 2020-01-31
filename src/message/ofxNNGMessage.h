@@ -11,7 +11,7 @@ class Message;
 template<typename T, typename SFINAE=void>
 struct adl_converter {
 	static void from_msg(T &t, const Message &msg, std::size_t offset);
-	static Message to_msg(const T &t);
+	static Message to_msg(T &&t);
 };
 
 class Message
@@ -26,7 +26,7 @@ public:
 	}
 	Message(Message &&msg) {
 		is_responsible_to_free_msg_ = false;
-		*this = std::forward<Message>(msg);
+		*this = std::move(msg);
 	}
 	Message(nng_msg *msg):msg_(msg) {}
 	~Message() {
@@ -50,7 +50,7 @@ public:
 	}
 	Message clone() const {
 		Message msg = *this;
-		return std::move(msg);
+		return msg;
 	}
 	operator nng_msg*() { return msg_; }
 	void setSentFlag() {
@@ -58,8 +58,8 @@ public:
 	}
 	
 	template<typename T>
-	void add(const T &t) {
-		Message msg = Message::from(t);
+	void add(T &&t) {
+		Message msg = Message::from(std::forward<T>(t));
 		add(msg.data(), msg.size());
 	}
 	void add(const void *data, std::size_t size) {
@@ -72,15 +72,15 @@ public:
 	template<typename T> T get(std::size_t offset=0) const {
 		T t;
 		to<T>(t, offset);
-		return std::move(t);
+		return t;
 	}
-	template<typename T> void set(const T &t) {
-		*this = adl_converter<T>::to_msg(t);
+	template<typename T> void set(T &&t) {
+		*this = adl_converter<T>::to_msg(std::forward<T>(t));
 	}
-	template<typename T> static Message from(const T &t) {
+	template<typename T> static Message from(T &&t) {
 		Message msg;
-		msg.set(t);
-		return std::move(msg);
+		msg.set(std::forward<T>(t));
+		return msg;
 	}
 	
 	void* data() { return nng_msg_body(msg_); }
@@ -91,14 +91,14 @@ private:
 	bool is_responsible_to_free_msg_=true;
 };
 template<typename T>
-struct adl_converter<T, typename std::enable_if<std::is_trivially_copyable<T>::value>::type> {
+	struct adl_converter<T, typename std::enable_if<std::is_trivially_copyable<typename std::remove_reference<T>::type>::value>::type> {
 	static void from_msg(T &t, const Message &msg, std::size_t offset) {
 		memcpy(&t, (const char*)msg.data()+offset, sizeof(T));
 	}
-	static Message to_msg(const T &t) {
+	static Message to_msg(T &&t) {
 		Message msg;
 		msg.add(&t, sizeof(T));
-		return std::move(msg);
+		return msg;
 	}
 };
 template<>
@@ -110,7 +110,7 @@ struct adl_converter<std::string> {
 	static Message to_msg(const std::string &t) {
 		Message msg;
 		msg.add(t.data(), t.size());
-		return std::move(msg);
+		return msg;
 	}
 };
 template<>
@@ -122,7 +122,7 @@ struct adl_converter<ofBuffer> {
 	static Message to_msg(const ofBuffer &t) {
 		Message msg;
 		msg.add(t.getData(), t.size());
-		return std::move(msg);
+		return msg;
 	}
 };
 
