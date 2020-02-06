@@ -7,12 +7,6 @@
 
 namespace ofx {
 namespace nng {
-class Message;
-template<typename T, typename SFINAE=void>
-struct adl_converter {
-	static void from_msg(T &t, const Message &msg, std::size_t offset);
-	static Message to_msg(T &&t);
-};
 
 class Message
 {
@@ -66,17 +60,13 @@ public:
 		append(std::forward<Rest>(rest)...);
 	}
 	
-	template<typename T> void to(T &t, std::size_t offset=0) const {
-		adl_converter<T>::from_msg(t, *this, offset);
-	}
+	template<typename T> void to(T &t, std::size_t offset=0) const;
 	template<typename T> T get(std::size_t offset=0) const {
 		T t;
 		to<T>(t, offset);
 		return t;
 	}
-	template<typename T> void set(T &&t) {
-		*this = adl_converter<T>::to_msg(std::forward<T>(t));
-	}
+	template<typename T> void set(T &&t);
 	template<typename T> static Message from(T &&t) {
 		Message msg;
 		msg.set(std::forward<T>(t));
@@ -91,53 +81,19 @@ private:
 	nng_msg *msg_;
 	bool is_responsible_to_free_msg_=true;
 };
-
-template<>
-struct adl_converter<Message> {
-	static void from_msg(Message &t, const Message &msg, std::size_t offset) {
-		t = msg;
-	}
-	static Message to_msg(Message &&t) {
-		return std::move(t);
-	}
-	static Message to_msg(const Message &t) {
-		return t;
-	}
-};
-template<typename T>
-struct adl_converter<T, typename std::enable_if<std::is_trivially_copyable<typename std::remove_reference<T>::type>::value>::type> {
-static void from_msg(T &t, const Message &msg, std::size_t offset) {
-	memcpy(&t, (const char*)msg.data()+offset, sizeof(T));
-}
-static Message to_msg(T &&t) {
-	Message msg;
-	msg.appendData(&t, sizeof(T));
-	return msg;
-}
-};
-template<>
-struct adl_converter<std::string> {
-	static void from_msg(std::string &t, const Message &msg, std::size_t offset) {
-		std::size_t size = msg.size()-offset;
-		t = std::string((const char*)msg.data()+offset, size);
-	}
-	static Message to_msg(const std::string &t) {
-		Message msg;
-		msg.appendData(t.data(), t.size());
-		return msg;
-	}
-};
-template<>
-struct adl_converter<ofBuffer> {
-	static void from_msg(ofBuffer &t, const Message &msg, std::size_t offset) {
-		std::size_t size = msg.size()-offset;
-		t.set((const char*)msg.data()+offset, size);
-	}
-	static Message to_msg(const ofBuffer &t) {
-		Message msg;
-		msg.appendData(t.getData(), t.size());
-		return msg;
-	}
-};
-
 }}
+
+#include "ofxNNGMessageConvertFunction.h"
+
+namespace ofx {
+namespace nng {
+	template<typename T>
+	void Message::to(T &t, std::size_t offset) const {
+		adl_converter<T>::from_msg(t, *this, offset);
+	}
+	template<typename T>
+	void Message::set(T &&t) {
+		*this = adl_converter<T>::to_msg(std::forward<T>(t));
+	}
+}
+}
