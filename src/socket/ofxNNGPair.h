@@ -11,8 +11,7 @@
 #include "ofThreadChannel.h"
 #include "ofxNNGNode.h"
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 class Pair : public Node
 {
 public:
@@ -118,4 +117,4 @@ private:
 		nng_recv_aio(socket_, aio_);
 		return true;	}
 };
-}}
+}

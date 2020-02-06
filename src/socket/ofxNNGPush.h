@@ -7,8 +7,7 @@
 #include "ofxNNGConvertFunctions.h"
 #include "ofxNNGNode.h"
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 class Push : public Node
 {
 public:
@@ -41,5 +40,4 @@ public:
 		return true;
 	}
 };
-}
 }

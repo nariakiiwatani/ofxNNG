@@ -5,8 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 
 namespace basic_converter {
 #pragma mark - ofxNNGMessage
@@ -62,13 +61,13 @@ template<typename T>
 struct adl_converter {
 	template<typename V>
 	static inline auto from_msg(V &v, const Message &msg, std::size_t offset)
-	-> decltype(::ofx::nng::basic_converter::from_msg(v,msg,offset)) {
-		return ::ofx::nng::basic_converter::from_msg(v,msg,offset);
+	-> decltype(::ofxNNG::basic_converter::from_msg(v,msg,offset)) {
+		return ::ofxNNG::basic_converter::from_msg(v,msg,offset);
 	}
 	template<typename V>
 	static inline auto to_msg(V &&v)
-	-> decltype(::ofx::nng::basic_converter::to_msg(std::forward<V>(v))) {
-		return ::ofx::nng::basic_converter::to_msg(std::forward<V>(v));
+	-> decltype(::ofxNNG::basic_converter::to_msg(std::forward<V>(v))) {
+		return ::ofxNNG::basic_converter::to_msg(std::forward<V>(v));
 	}
 };
-}}
+}

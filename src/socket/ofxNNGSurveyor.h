@@ -10,8 +10,7 @@
 #include "ofxNNGParseFunctions.h"
 #include "ofxNNGNode.h"
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 class Surveyor : public Node
 {
 public:
@@ -147,4 +146,4 @@ private:
 		nng_mtx_unlock(callback_mtx_);
 	}
 };
-}}
+}

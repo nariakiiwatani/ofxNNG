@@ -10,8 +10,7 @@
 #include "ofThreadChannel.h"
 #include "ofxNNGNode.h"
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 class Respondent : public Node
 {
 public:
@@ -106,4 +105,4 @@ private:
 		nng_ctx_send(work->ctx, work->aio);
 	}
 };
-}}
+}

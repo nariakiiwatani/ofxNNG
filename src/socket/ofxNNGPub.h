@@ -7,8 +7,7 @@
 #include "ofLog.h"
 #include "ofxNNGMessage.h"
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 class Pub : public Node
 {
 public:
@@ -51,4 +50,4 @@ public:
 	}
 };
 }
-}
+

@@ -3,8 +3,7 @@
 #include "nng.h"
 #include <vector>
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 namespace aio {
 enum State {
 	SEND, RECV
@@ -56,4 +55,4 @@ inline void Work::release() {
 	parent->back(this);
 }
 
-}}}
+}}

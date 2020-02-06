@@ -2,8 +2,7 @@
 
 #include "nng.h"
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 class Pipe
 {
 public:
@@ -127,4 +126,4 @@ protected:
 		return pipe;
 	}
 };
-}}
+}

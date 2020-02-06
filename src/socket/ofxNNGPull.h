@@ -8,8 +8,7 @@
 #include "ofxNNGParseFunctions.h"
 #include "ofxNNGNode.h"
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 class Pull : public Node
 {
 public:
@@ -68,4 +67,4 @@ private:
 		}
 	}
 };
-}}
+}

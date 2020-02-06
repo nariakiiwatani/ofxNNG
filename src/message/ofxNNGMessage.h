@@ -5,8 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 
 class Message
 {
@@ -81,12 +80,11 @@ private:
 	nng_msg *msg_;
 	bool is_responsible_to_free_msg_=true;
 };
-}}
+}
 
 #include "ofxNNGMessageConvertFunction.h"
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 	template<typename T>
 	void Message::to(T &t, std::size_t offset) const {
 		adl_converter<T>::from_msg(t, *this, offset);
@@ -96,4 +94,4 @@ namespace nng {
 		*this = adl_converter<T>::to_msg(std::forward<T>(t));
 	}
 }
-}
+

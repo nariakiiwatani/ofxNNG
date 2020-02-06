@@ -13,8 +13,7 @@
 #include "ofThreadChannel.h"
 #include <map>
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 class Sub : public Node
 {
 public:
@@ -122,4 +121,4 @@ private:
 		});
 	}
 };
-}}
+}

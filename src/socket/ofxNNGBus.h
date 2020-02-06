@@ -6,8 +6,7 @@
 #include "ofxNNGParseFunctions.h"
 #include "ofxNNGConvertFunctions.h"
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 class Bus : public Node
 {
 public:
@@ -85,4 +84,4 @@ private:
 		}
 	}
 };
-}}
+}

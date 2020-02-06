@@ -10,8 +10,7 @@
 #include "ofxNNGParseFunctions.h"
 #include "ofxNNGNode.h"
 
-namespace ofx {
-namespace nng {
+namespace ofxNNG {
 class Req : public Node
 {
 public:
@@ -133,4 +132,4 @@ private:
 		nng_mtx_unlock(work_mtx_);
 	}
 };
-}}
+}
