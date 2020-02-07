@@ -6,8 +6,7 @@
 #include "supplemental/util/platform.h"
 #include "ofLog.h"
 #include "ASyncWork.h"
-#include "ofxNNGConvertFunctions.h"
-#include "ofxNNGParseFunctions.h"
+#include "ofxNNGMessage.h"
 #include "ofxNNGNode.h"
 
 namespace ofxNNG {
@@ -44,8 +43,8 @@ public:
 		work_.initialize(s.max_queue, &Req::async, this);
 		return true;
 	}
-	template<typename Request, typename Response>
-	bool send(const Request &req, std::function<void(const Response&)> callback) {
+	template<typename T>
+	bool send(Message msg, std::function<void(T&&)> callback) {
 		aio::Work *work = nullptr;
 		nng_mtx_lock(work_mtx_);
 		work = work_.getUnused();
@@ -55,26 +54,21 @@ public:
 			return false;
 		}
 		nng_ctx_open(&work->ctx, socket_);
-		nng_msg *msg;
-		nng_msg_alloc(&msg, 0);
-		if(!util::convert(req, msg)) {
-			ofLogError("ofxNNGReq") << "failed to convert data";
-			return false;
-		}
 		nng_aio_set_msg(work->aio, msg);
 		nng_mtx_lock(callback_mtx_);
-		callback_[nng_ctx_id(work->ctx)] = [callback](nng_msg *msg) {
-			callback(util::parse<ofBuffer>(msg));
+		callback_[nng_ctx_id(work->ctx)] = [callback](Message msg) {
+			callback(msg.get<T>());
 		};
 		nng_mtx_unlock(callback_mtx_);
 		nng_aio_set_timeout(work->aio, timeout_);
 		work->state = aio::SEND;
 		nng_ctx_send(work->ctx, work->aio);
+		msg.setSentFlag();
 		return true;
 	}
 private:
 	aio::WorkPool work_;
-	std::map<int, std::function<void(nng_msg*)>> callback_;
+	std::map<int, std::function<void(Message)>> callback_;
 	nng_mtx *work_mtx_, *callback_mtx_;
 	bool async_;
 	ofThreadChannel<aio::Work*> channel_;
@@ -117,12 +111,11 @@ private:
 		}
 	}
 	void onReceiveReply(aio::Work *work) {
-		auto msg = nng_aio_get_msg(work->aio);
+		Message msg(nng_aio_get_msg(work->aio));
 		nng_mtx_lock(callback_mtx_);
 		callback_[nng_ctx_id(work->ctx)](msg);
 		callback_.erase(nng_ctx_id(work->ctx));
 		nng_mtx_unlock(callback_mtx_);
-		nng_msg_free(msg);
 		closeWork(work);
 	}
 	void closeWork(aio::Work *work) {

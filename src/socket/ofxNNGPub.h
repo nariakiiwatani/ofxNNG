@@ -22,11 +22,7 @@ public:
 		}
 		return true;
 	}
-	template<typename T>
-	bool send(T &&msg) {
-		return send(std::forward<Message>(to_msg(msg)));
-	}
-	bool send(Message &&msg) {
+	bool send(Message msg) {
 		int result;
 		result = nng_sendmsg(socket_, msg, 0);
 		if(result != 0) {
@@ -36,17 +32,9 @@ public:
 		msg.setSentFlag();
 		return true;
 	}
-	template<typename T>
-	bool send(const std::string &topic, T &&msg) {
-		return send(topic, std::move(adl_converter<T>::to_msg(msg)));
-	}
-	template<>
-	bool send(const std::string &topic, Message &&msg) {
-		return send(topic.data(), topic.length(), std::forward<Message>(msg));
-	}
-	bool send(const void *topic_data, std::size_t topic_size, Message &&msg) {
-		nng_msg_insert(msg, topic_data, topic_size);
-		return send(std::forward<Message>(msg));
+	bool send(const std::string &topic, Message msg) {
+		msg.prepend(topic);
+		return send(std::move(msg));
 	}
 };
 }

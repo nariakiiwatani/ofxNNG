@@ -5,7 +5,7 @@
 #include "supplemental/util/platform.h"
 #include "pipeline0/pull.h"
 #include "ASyncWork.h"
-#include "ofxNNGParseFunctions.h"
+#include "ofxNNGMessage.h"
 #include "ofxNNGNode.h"
 
 namespace ofxNNG {
@@ -16,15 +16,15 @@ public:
 		bool allow_callback_from_other_thread=false;
 	};
 	template<typename T>
-	bool setup(const Settings &s, const std::function<void(const T&)> &callback) {
+	bool setup(const Settings &s, const std::function<void(T&&)> &callback) {
 		int result;
 		result = nng_pull0_open(&socket_);
 		if(result != 0) {
 			ofLogError("ofxNNGPull") << "failed to open socket;" << nng_strerror(result);
 			return false;
 		}
-		callback_ = [callback](nng_msg *msg) {
-			callback(util::parse<T>(msg));
+		callback_ = [callback](Message msg) {
+			callback(msg.get<T>());
 		};
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
@@ -39,9 +39,9 @@ public:
 	}
 private:
 	nng_aio *aio_;
-	std::function<void(nng_msg*)> callback_;
+	std::function<void(Message)> callback_;
 	bool async_;
-	ofThreadChannel<nng_msg*> channel_;
+	ofThreadChannel<Message> channel_;
 	static void receive(void *arg) {
 		auto me = (Pull*)arg;
 		auto result = nng_aio_result(me->aio_);
@@ -49,21 +49,19 @@ private:
 			ofLogError("ofxNNGPull") << "failed to receive message; " << nng_strerror(result);
 			return;
 		}
-		auto msg = nng_aio_get_msg(me->aio_);
+		Message msg(nng_aio_get_msg(me->aio_));
 		if(me->async_) {
-			me->callback_(msg);
-			nng_msg_free(msg);
+			me->callback_(std::move(msg));
 		}
 		else {
-			me->channel_.send(msg);
+			me->channel_.send(std::move(msg));
 		}
 		nng_recv_aio(me->socket_, me->aio_);
 	}
 	void update(ofEventArgs&) {
-		nng_msg *msg;
+		Message msg;
 		while(channel_.tryReceive(msg)) {
-			callback_(msg);
-			nng_msg_free(msg);
+			callback_(std::move(msg));
 		}
 	}
 };

@@ -41,8 +41,8 @@ public:
 
 	template<typename T>
 	bool subscribe(const std::string &topic, std::function<void(const std::string&, T&&)> callback) {
-		return subscribe<ofBuffer>(topic.data(), topic.size(), [=](const ofBuffer &topic, T &&message) {
-			callback(topic.getText(), std::forward<T>(message));
+		return subscribe<T>(topic.data(), topic.size(), [=](const ofBuffer &topic, T &&msg) {
+			callback(topic.getText(), std::forward<T>(msg));
 		});
 	}
 	template<typename T>
@@ -52,8 +52,8 @@ public:
 			ofLogError("ofxNNGSub") << "failed to subscribe topic; " << nng_strerror(result);
 			return false;
 		}
-		callback_.emplace_back(ofBuffer{(const char*)topic_data, topic_size}, [=](const ofBuffer &topic, Message &&msg) {
-			callback(topic, std::move(msg.get<T>(topic.size())));
+		callback_.emplace_back(ofBuffer{(const char*)topic_data, topic_size}, [=](const ofBuffer &topic, Message msg) {
+			callback(topic, msg.get<T>(topic.size()));
 		});
 		return true;
 	}
@@ -64,8 +64,8 @@ public:
 			ofLogError("ofxNNGSub") << "failed to subscribe topic; " << nng_strerror(result);
 			return false;
 		}
-		callback_.emplace_back(ofBuffer{nullptr, 0}, [=](const ofBuffer &topic, Message &&msg) {
-			callback(std::move(msg.get<T>()));
+		callback_.emplace_back(ofBuffer{nullptr, 0}, [=](const ofBuffer &topic, Message msg) {
+			callback(msg.get<T>());
 		});
 		return true;
 	}
@@ -79,14 +79,14 @@ public:
 			return false;
 		}
 		ofBuffer data((const char*)topic, topic_length);
-		callback_.erase(std::remove_if(std::begin(callback_), std::end(callback_), [data](std::pair<ofBuffer, std::function<void(const ofBuffer&, Message&&)>> &kv) {
+		callback_.erase(std::remove_if(std::begin(callback_), std::end(callback_), [data](std::pair<ofBuffer, std::function<void(const ofBuffer&, Message)>> &kv) {
 			return kv.first.size() == data.size() && memcmp(kv.first.getData(), data.getData(), data.size()) == 0;
 		}), std::end(callback_));
 		return true;
 	}
 private:
 	nng_aio *aio_;
-	std::vector<std::pair<ofBuffer, std::function<void(const ofBuffer&, Message&&)>>> callback_;
+	std::vector<std::pair<ofBuffer, std::function<void(const ofBuffer&, Message)>>> callback_;
 	bool async_;
 	ofThreadChannel<Message> channel_;
 	static void receive(void *arg) {
@@ -98,8 +98,7 @@ private:
 		}
 		auto msg = Message(nng_aio_get_msg(me->aio_));
 		if(me->async_) {
-			me->dispatch(msg);
-//			nng_msg_free(msg);
+			me->dispatch(std::move(msg));
 		}
 		else {
 			me->channel_.send(std::move(msg));
@@ -110,13 +109,12 @@ private:
 		Message msg;
 		while(channel_.tryReceive(msg)) {
 			dispatch(msg);
-//			nng_msg_free(msg);
 		}
 	}
 	void dispatch(Message &msg) {
-		std::for_each(std::begin(callback_), std::end(callback_), [&](const std::pair<ofBuffer, std::function<void(const ofBuffer&, Message&&)>> &kv) {
+		std::for_each(std::begin(callback_), std::end(callback_), [&](const std::pair<ofBuffer, std::function<void(const ofBuffer&, Message)>> &kv) {
 			if(memcmp(msg.data(), kv.first.getData(), kv.first.size())==0) {
-				kv.second(kv.first, std::move(msg.clone()));
+				kv.second(kv.first, msg);
 			}
 		});
 	}

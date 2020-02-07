@@ -1,6 +1,6 @@
 #include "ofApp.h"
 
-using namespace ofx::nng;
+using namespace ofxNNG;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -27,9 +27,7 @@ void ofApp::draw(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-	ofBuffer buffer;
-	buffer.set(ofToString((char)key));
-	push_.send(buffer);
+	push_.send(key);
 }
 
 //--------------------------------------------------------------

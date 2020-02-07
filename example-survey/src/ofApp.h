@@ -24,6 +24,6 @@ public:
 	void dragEvent(ofDragInfo dragInfo);
 	void gotMessage(ofMessage msg);
 private:
-	ofx::nng::Surveyor survey_;
-	std::vector<std::shared_ptr<ofx::nng::Respondent>> respond_;
+	ofxNNG::Surveyor survey_;
+	std::vector<std::shared_ptr<ofxNNG::Respondent>> respond_;
 };

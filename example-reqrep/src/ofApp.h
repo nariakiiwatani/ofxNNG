@@ -24,6 +24,6 @@ public:
 	void dragEvent(ofDragInfo dragInfo);
 	void gotMessage(ofMessage msg);
 private:
-	ofx::nng::Req req_;
-	ofx::nng::Rep rep_;
+	ofxNNG::Req req_;
+	ofxNNG::Rep rep_;
 };

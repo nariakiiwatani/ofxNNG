@@ -40,6 +40,10 @@ public:
 		std::swap(is_responsible_to_free_msg_, msg.is_responsible_to_free_msg_);
 		return *this;
 	}
+	template<typename ...Args>
+	Message(Args &&...args):Message() {
+		append(std::forward<Args>(args)...);
+	}
 	Message clone() const {
 		Message msg = *this;
 		return msg;
@@ -57,6 +61,14 @@ public:
 		Message msg = Message::from(std::forward<Arg>(arg));
 		appendData(msg.data(), msg.size());
 		append(std::forward<Rest>(rest)...);
+	}
+	void prependData(const void *data, std::size_t size) {
+		nng_msg_insert(msg_, data, size);
+	}
+	template<typename ...Arg>
+	void prepend(Arg &&...arg) {
+		Message msg(arg...);
+		prependData(msg.data(), msg.size());
 	}
 	
 	template<typename T> void to(T &t, std::size_t offset=0) const;

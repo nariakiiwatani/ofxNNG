@@ -1,6 +1,6 @@
 #include "ofApp.h"
 
-using namespace ofx::nng;
+using namespace ofxNNG;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -12,7 +12,7 @@ void ofApp::setup(){
 	Respondent::Settings responds;
 	respond_.resize(8);
 	for(auto &r : respond_) {
-		r = std::make_shared<ofx::nng::Respondent>();
+		r = std::make_shared<ofxNNG::Respondent>();
 		r->setup<ofBuffer, ofBuffer>(responds, [](const ofBuffer &buffer, ofBuffer& dst) {
 			dst.set(buffer);
 			ofLogNotice("got survey: ") << buffer.getText();
@@ -36,7 +36,7 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
 	ofBuffer buffer;
 	buffer.set(ofToString((char)key));
-	survey_.send<ofBuffer, ofBuffer>(buffer, [](const ofBuffer &buffer) {
+	survey_.send<ofBuffer>(buffer, [](const ofBuffer &buffer) {
 		ofLogNotice("got respond: ") << buffer.getText();
 	});
 }

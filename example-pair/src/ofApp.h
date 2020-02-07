@@ -22,5 +22,5 @@ public:
 	void dragEvent(ofDragInfo dragInfo);
 	void gotMessage(ofMessage msg);
 private:
-	ofx::nng::Pair node0_, node1_, node2_;
+	ofxNNG::Pair node0_, node1_, node2_;
 };

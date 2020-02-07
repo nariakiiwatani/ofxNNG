@@ -6,8 +6,7 @@
 #include "supplemental/util/platform.h"
 #include "ofLog.h"
 #include "ASyncWork.h"
-#include "ofxNNGConvertFunctions.h"
-#include "ofxNNGParseFunctions.h"
+#include "ofxNNGMessage.h"
 #include "ofxNNGNode.h"
 
 namespace ofxNNG {
@@ -44,8 +43,8 @@ public:
 		work_.initialize(s.max_queue, &Surveyor::async, this);
 		return true;
 	}
-	template<typename Request, typename Response>
-	bool send(const Request &req, std::function<void(const Response&)> callback) {
+	template<typename T>
+	bool send(Message msg, std::function<void(T&&)> callback) {
 		aio::Work *work = nullptr;
 		nng_mtx_lock(work_mtx_);
 		work = work_.getUnused();
@@ -55,40 +54,24 @@ public:
 			return false;
 		}
 		nng_ctx_open(&work->ctx, socket_);
-		nng_msg *msg;
-		nng_msg_alloc(&msg, 0);
-		if(!util::convert(req, msg)) {
-			ofLogError("ofxNNGSurveyor") << "failed to convert data";
-			nng_mtx_lock(work_mtx_);
-			work->release();
-			nng_mtx_unlock(work_mtx_);
-			return false;
-		}
 		nng_aio_set_msg(work->aio, msg);
 		nng_mtx_lock(callback_mtx_);
-		callback_[work] = [callback](nng_msg *msg) {
-			callback(util::parse<ofBuffer>(msg));
+		callback_[work] = [callback](Message msg) {
+			callback(msg.get<T>());
 		};
 		nng_mtx_unlock(callback_mtx_);
 		nng_aio_set_timeout(work->aio, timeout_);
 		work->state = aio::SEND;
 		nng_ctx_send(work->ctx, work->aio);
+		msg.setSentFlag();
 		return true;
 	}
 private:
 	aio::WorkPool work_;
-	std::map<aio::Work*, std::function<void(nng_msg*)>> callback_;
+	std::map<aio::Work*, std::function<void(Message)>> callback_;
 	nng_mtx *work_mtx_, *callback_mtx_;
 	bool async_;
-	struct AsyncWork {
-		AsyncWork() {}
-		AsyncWork(aio::Work *w):work(w) {
-			auto src = nng_aio_get_msg(work->aio);
-			nng_msg_dup(&msg, src);
-		}
-		aio::Work *work;
-		nng_msg *msg;
-	};
+	using AsyncWork = std::pair<aio::Work*, Message>;
 	ofThreadChannel<AsyncWork> channel_;
 	nng_duration timeout_;
 	
@@ -122,13 +105,13 @@ private:
 					nng_mtx_unlock(me->work_mtx_);
 					return;
 				}
+				AsyncWork aw{work, nng_aio_get_msg(work->aio)};
 				if(me->async_) {
-					me->onReceiveReply(work);
+					me->onReceiveReply(std::move(aw));
 				}
 				else {
-					me->channel_.send({work});
+					me->channel_.send(std::move(aw));
 				}
-				nng_msg_free(nng_aio_get_msg(work->aio));
 				nng_ctx_recv(work->ctx, work->aio);
 			}	break;
 		}
@@ -136,13 +119,12 @@ private:
 	void update(ofEventArgs&) {
 		AsyncWork work;
 		while(channel_.tryReceive(work)) {
-			onReceiveReply(work);
-			nng_msg_free(work.msg);
+			onReceiveReply(std::move(work));
 		}
 	}
-	void onReceiveReply(const AsyncWork &work) {
+	void onReceiveReply(AsyncWork work) {
 		nng_mtx_lock(callback_mtx_);
-		callback_[work.work](work.msg);
+		callback_[work.first](std::move(work.second));
 		nng_mtx_unlock(callback_mtx_);
 	}
 };

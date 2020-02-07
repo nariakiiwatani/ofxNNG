@@ -5,8 +5,7 @@
 #include "survey0/respond.h"
 #include "ofLog.h"
 #include "ASyncWork.h"
-#include "ofxNNGParseFunctions.h"
-#include "ofxNNGConvertFunctions.h"
+#include "ofxNNGMessage.h"
 #include "ofThreadChannel.h"
 #include "ofxNNGNode.h"
 
@@ -26,16 +25,12 @@ public:
 			ofLogError("ofxNNGRespondent") << "failed to open socket;" << nng_strerror(result);
 			return false;
 		}
-		callback_ = [callback](nng_msg *msg) {
-			Request req = util::parse<Request>(msg);
+		callback_ = [callback](Message &msg) {
 			Response res;
-			if(!callback(req, res)) {
+			if(!callback(msg.get<Request>(), res)) {
 				return false;
 			}
-			if(!util::convert(res, msg)) {
-				ofLogError("ofxNNGRespondent") << "failed to convert message";
-				return false;
-			}
+			msg.set(res);
 			return true;
 		};
 		async_ = s.allow_callback_from_other_thread;
@@ -52,7 +47,7 @@ public:
 	}
 private:
 	aio::WorkPool work_;
-	std::function<bool(nng_msg*)> callback_;
+	std::function<bool(Message&)> callback_;
 	bool async_;
 	ofThreadChannel<aio::Work*> channel_;
 	
@@ -95,14 +90,14 @@ private:
 		}
 	}
 	void reply(aio::Work *work) {
-		auto msg = nng_aio_get_msg(work->aio);
+		Message msg(nng_aio_get_msg(work->aio));
 		if(!callback_(msg)) {
-			nng_msg_free(msg);
 			return;
 		}
 		nng_aio_set_msg(work->aio, msg);
 		work->state = aio::SEND;
 		nng_ctx_send(work->ctx, work->aio);
+		msg.setSentFlag();
 	}
 };
 }

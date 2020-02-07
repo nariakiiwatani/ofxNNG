@@ -2,7 +2,7 @@
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-	ofx::nng::Pair::Settings pairs;
+	ofxNNG::Pair::Settings pairs;
 	pairs.polyamorous_mode = true;
 	pairs.allow_callback_from_other_thread=false;
 	node0_.setup<ofBuffer>(pairs, [this](const ofBuffer &buffer, nng_pipe pipe) {

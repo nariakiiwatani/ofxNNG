@@ -1,6 +1,6 @@
 #include "ofApp.h"
 
-using namespace ofx::nng;
+using namespace ofxNNG;
 //--------------------------------------------------------------
 void ofApp::setup(){
 	Rep::Settings reps;
@@ -26,7 +26,7 @@ void ofApp::setup(){
 	});
 	dialer->setEventCallback(NNG_PIPE_EV_ADD_POST, [this]() {
 		ofLogNotice() << "this is post-connection callback. now you can send anything.";
-		req_.send<std::string, std::string>("this is a connection message", [](const std::string &reply) {
+		req_.send<std::string>("this is a connection message", [](const std::string &reply) {
 			ofLogNotice() << reply;
 		});
 	});
@@ -50,7 +50,7 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
 	auto buffer = ofBuffer();
 	buffer.set("pressed:" + ofToString((char)key));
-	req_.send<ofBuffer, ofBuffer>(buffer, [](const ofBuffer &buffer) {
+	req_.send<ofBuffer>(buffer, [](const ofBuffer &buffer) {
 		ofLogNotice() << buffer.getText();
 	});
 }

@@ -22,5 +22,5 @@ public:
 	void dragEvent(ofDragInfo dragInfo);
 	void gotMessage(ofMessage msg);
 private:
-	std::vector<std::shared_ptr<ofx::nng::Bus>> bus_;
+	std::vector<std::shared_ptr<ofxNNG::Bus>> bus_;
 };

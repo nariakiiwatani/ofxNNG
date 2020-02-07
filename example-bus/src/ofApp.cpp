@@ -1,6 +1,6 @@
 #include "ofApp.h"
 
-using namespace ofx::nng;
+using namespace ofxNNG;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -35,9 +35,7 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
 	int index = key-'1';
 	if(index >= 0 && index < bus_.size()) {
-		ofBuffer data;
-		data.set("message from node"+ofToString(index));
-		bus_[key-'1']->send(data);
+		bus_[key-'1']->send("message from node"+ofToString(index));
 		cout << "node" << index << ": send" << endl;
 	}
 }

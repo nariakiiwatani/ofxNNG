@@ -24,6 +24,6 @@ public:
 	void dragEvent(ofDragInfo dragInfo);
 	void gotMessage(ofMessage msg);
 private:
-	ofx::nng::Pub pub_;
-	std::vector<std::shared_ptr<ofx::nng::Sub>> sub_;
+	ofxNNG::Pub pub_;
+	std::vector<std::shared_ptr<ofxNNG::Sub>> sub_;
 };
