@@ -4,13 +4,14 @@ using namespace ofxNNG;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
+	// 4 buses make all-to-all mesh connection 
 	bus_.resize(4);
 	Bus::Settings buss;
 	for(int i = 0; i < bus_.size(); ++i) {
 		auto &b = bus_[i];
 		b = std::make_shared<Bus>();
-		b->setup<ofBuffer>(buss, [i](const ofBuffer &buffer) {
-			cout << "node" << i << ": receive:" << buffer.getText() << endl;
+		b->setup<std::string>(buss, [i](const std::string &message) {
+			ofLogNotice("bus "+ofToString(i)+" receive") << message;
 		});
 		std::string recv_url = "inproc://bus"+ofToString(i);
 		b->createListener(recv_url)->start();
@@ -28,15 +29,16 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-
+	ofDrawBitmapString("press 1,2,3,4 and see console to know what happens", 10, 14);
 }
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
 	int index = key-'1';
 	if(index >= 0 && index < bus_.size()) {
-		bus_[key-'1']->send("message from node"+ofToString(index));
-		cout << "node" << index << ": send" << endl;
+		std::string message = "message from node"+ofToString(index);
+		bus_[key-'1']->send(message);
+		ofLogNotice("bus "+ofToString(index)+" send") << message;
 	}
 }
 

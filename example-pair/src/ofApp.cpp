@@ -31,7 +31,7 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-
+	ofDrawBitmapString("press left or right and see console to know what happens", 10, 14);
 }
 
 //--------------------------------------------------------------

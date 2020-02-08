@@ -1,6 +1,7 @@
 #include "ofApp.h"
 
 using namespace ofxNNG;
+using namespace std;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -9,16 +10,23 @@ void ofApp::setup(){
 	survey_.setup(surveys);
 	survey_.createListener("inproc://test")->start();
 
+	const vector<string> names{
+		"apple",
+		"banana",
+		"cylinder",
+		"device",
+		"bang",
+		"circle"
+	};
 	Respondent::Settings responds;
-	respond_.resize(8);
-	for(auto &r : respond_) {
-		r = std::make_shared<ofxNNG::Respondent>();
-		r->setup<ofBuffer, ofBuffer>(responds, [](const ofBuffer &buffer, ofBuffer& dst) {
-			dst.set(buffer);
-			ofLogNotice("got survey: ") << buffer.getText();
-			return true;
+	for(auto &&n : names) {
+		auto r = std::make_shared<ofxNNG::Respondent>();
+		r->setup<char, string>(responds, [n](const char &request, string& response) {
+			response = n + " is here!";
+			return n[0] == request;
 		});
 		r->createDialer("inproc://test")->start();
+		respond_.emplace_back(r);
 	}
 }
 
@@ -29,15 +37,15 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-
+	ofDrawBitmapString("press a,b,c,d and see console to know what happens", 10, 14);
 }
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-	ofBuffer buffer;
-	buffer.set(ofToString((char)key));
-	survey_.send<ofBuffer>(buffer, [](const ofBuffer &buffer) {
-		ofLogNotice("got respond: ") << buffer.getText();
+	char ch = key;
+	ofLogNotice("survey") << "is there anyone who's name starts with:" << ch;
+	survey_.send<string>(ch, [](const string &response) {
+		ofLogNotice("renponse") << response;
 	});
 }
 

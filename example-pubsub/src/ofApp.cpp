@@ -26,10 +26,10 @@ void ofApp::setup(){
 	listener->setEventCallback(NNG_PIPE_EV_ADD_POST, [this]() {
 		// you can send connection message here.
 		// say hello or send topic list, bra bra bra,,,
-		ofxNNG::Message message;
-		message.prepend('H','e','l','l','o','!');
-		message.prepend("this is connection message");
-		pub_.send("connection:", message);
+		ofxNNG::Message message{'H','e','l','l','o','!', "this is connection message"};
+		pub_.send("connection:", message);	// this call creates message's copy
+		pub_.send("connection2:", message);	// so you can still resend or edit message
+		pub_.send("connection3:", std::move(message));	// if you are sure you don't need the instance anymore, std::move is a better way.
 	});
 	listener->start();
 
@@ -40,23 +40,21 @@ void ofApp::setup(){
 		s->setup(subs);
 		// subscribe specific topic
 		// template argument type is which incoming msg will be converted to.
-		// see ofxNNGConvertFunctions.h and ofxNNGParseFunctions.h
-		// or you can add your convert/parse functionalities in ofx::nng::util namespace.
 		s->subscribe<std::string>("connection:", [](const std::string &topic, const std::string &message) {
 			ofLogNotice("sub connected") << "topic:" << topic << ", message:" << message;
 		});
-		// you can subscribe all message by passing empty topic
-		// but the argument 'topic' also will be empty and it comes with 'message', so if you want to separate them you need some external rules.
-		s->subscribe<UserType>("user", [](const std::string &topic, const UserType &message) {
+		s->subscribe<UserType>("usertype", [](const std::string &topic, const UserType &message) {
 			ofLogNotice("sub received") << "message:" << message.ch;
 		});
-		s->subscribe<uint64_t>("frame", [](const std::string &topic, const uint64_t &message) {
-			ofLogNotice("sub received") << "topic:" << topic << "message:" << message;
-		});
-		// topic don't have to be string.
+		// topic can be other than string.
 		char topic_ch = 'a';
 		s->subscribe<std::string>(&topic_ch, sizeof(char), [](const ofBuffer &topic, const std::string &message) {
 			ofLogNotice("sub integer topic") << "topic:" << topic.getText() << ", message:" << message;
+		});
+		// you can subscribe all message by passing empty topic
+		// but the argument 'topic' also will be empty and it comes with 'message', so if you want to separate them you need some external rules.
+		s->subscribe<std::string>([](const std::string &message) {
+			ofLogNotice("all topic") << "message:" << message;
 		});
 		s->createDialer("inproc://test")->start();
 	}
@@ -64,7 +62,6 @@ void ofApp::setup(){
 
 //--------------------------------------------------------------
 void ofApp::update(){
-//	pub_.send("frame", ofGetFrameNum());
 
 }
 
@@ -75,7 +72,7 @@ void ofApp::draw(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-	pub_.send("user", UserType{key});
+	pub_.send("usertype", UserType{key});
 }
 
 //--------------------------------------------------------------
