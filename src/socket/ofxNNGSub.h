@@ -96,7 +96,7 @@ private:
 			ofLogError("ofxNNGSub") << "failed to receive message; " << nng_strerror(result);
 			return;
 		}
-		auto msg = Message(nng_aio_get_msg(me->aio_));
+		Message msg(nng_aio_get_msg(me->aio_));
 		if(me->async_) {
 			me->dispatch(std::move(msg));
 		}
@@ -111,7 +111,7 @@ private:
 			dispatch(msg);
 		}
 	}
-	void dispatch(Message &msg) {
+	void dispatch(Message msg) {
 		std::for_each(std::begin(callback_), std::end(callback_), [&](const std::pair<ofBuffer, std::function<void(const ofBuffer&, Message)>> &kv) {
 			if(memcmp(msg.data(), kv.first.getData(), kv.first.size())==0) {
 				kv.second(kv.first, msg);

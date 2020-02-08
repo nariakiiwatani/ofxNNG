@@ -56,7 +56,7 @@ public:
 		nng_ctx_open(&work->ctx, socket_);
 		nng_aio_set_msg(work->aio, msg);
 		nng_mtx_lock(callback_mtx_);
-		callback_[work] = [callback](Message msg) {
+		callback_[nng_ctx_id(work->ctx)] = [callback](Message msg) {
 			callback(msg.get<T>());
 		};
 		nng_mtx_unlock(callback_mtx_);
@@ -68,10 +68,10 @@ public:
 	}
 private:
 	aio::WorkPool work_;
-	std::map<aio::Work*, std::function<void(Message)>> callback_;
+	std::map<int, std::function<void(Message)>> callback_;
 	nng_mtx *work_mtx_, *callback_mtx_;
 	bool async_;
-	using AsyncWork = std::pair<aio::Work*, Message>;
+	using AsyncWork = std::pair<int, Message>;
 	ofThreadChannel<AsyncWork> channel_;
 	nng_duration timeout_;
 	
@@ -105,7 +105,7 @@ private:
 					nng_mtx_unlock(me->work_mtx_);
 					return;
 				}
-				AsyncWork aw{work, nng_aio_get_msg(work->aio)};
+				AsyncWork aw{nng_ctx_id(work->ctx), nng_aio_get_msg(work->aio)};
 				if(me->async_) {
 					me->onReceiveReply(std::move(aw));
 				}
