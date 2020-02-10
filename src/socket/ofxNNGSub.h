@@ -19,9 +19,10 @@ class Sub : public Node
 {
 public:
 	struct Settings {
+		Settings(){}
 		bool allow_callback_from_other_thread=false;
 	};
-	bool setup(const Settings &s) {
+	bool setup(const Settings &s=Settings()) {
 		int result;
 		result = nng_sub0_open(&socket_);
 		if(result != 0) {
@@ -40,6 +41,12 @@ public:
 		if(aio_) nng_aio_free(aio_);
 	}
 
+	template<typename T>
+	bool subscribe(const std::string &topic, std::function<void(T&&)> callback) {
+		return subscribe<T>(topic.data(), topic.size(), [=](const ofBuffer &topic, T &&msg) {
+			callback(std::forward<T>(msg));
+		});
+	}
 	template<typename T>
 	bool subscribe(const std::string &topic, std::function<void(const std::string&, T&&)> callback) {
 		return subscribe<T>(topic.data(), topic.size(), [=](const ofBuffer &topic, T &&msg) {
@@ -66,7 +73,7 @@ public:
 			return false;
 		}
 		callback_.emplace_back(ofBuffer{nullptr, 0}, [=](const ofBuffer &topic, Message msg) {
-			callback(msg.get<T>());
+			callback(msg.get<T>(topic.size()));
 		});
 		return true;
 	}
@@ -109,7 +116,7 @@ private:
 	void update(ofEventArgs&) {
 		Message msg;
 		while(channel_.tryReceive(msg)) {
-			dispatch(msg);
+			dispatch(std::move(msg));
 		}
 	}
 	void dispatch(Message msg) {

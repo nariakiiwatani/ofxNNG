@@ -14,25 +14,17 @@ class Respondent : public Node
 {
 public:
 	struct Settings {
+		Settings(){}
 		int max_queue=16;
 		bool allow_callback_from_other_thread=false;
 	};
-	template<typename Request, typename Response>
-	bool setup(const Settings &s, const std::function<bool(const Request&, Response&)> &callback) {
+	bool setup(const Settings &s=Settings()) {
 		int result;
 		result = nng_respondent0_open(&socket_);
 		if(result != 0) {
 			ofLogError("ofxNNGRespondent") << "failed to open socket;" << nng_strerror(result);
 			return false;
 		}
-		callback_ = [callback](Message &msg) {
-			Response res;
-			if(!callback(msg.get<Request>(), res)) {
-				return false;
-			}
-			msg.set(res);
-			return true;
-		};
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
 			ofAddListener(ofEvents().update, this, &Respondent::update);
@@ -44,6 +36,17 @@ public:
 			nng_ctx_recv(work->ctx, work->aio);
 		}
 		return true;
+	}
+	template<typename Request, typename Response>
+	void setCallback(const std::function<bool(const Request&, Response&)> &callback) {
+		callback_ = [callback](Message &msg) {
+			Response res;
+			if(!callback(msg.get<Request>(), res)) {
+				return false;
+			}
+			msg.set(res);
+			return true;
+		};
 	}
 private:
 	aio::WorkPool work_;

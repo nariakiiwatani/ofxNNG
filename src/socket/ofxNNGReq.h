@@ -14,11 +14,12 @@ class Req : public Node
 {
 public:
 	struct Settings {
+		Settings(){}
 		int max_queue=16;
 		nng_duration timeout_milliseconds=NNG_DURATION_DEFAULT;
 		bool allow_callback_from_other_thread=false;
 	};
-	bool setup(const Settings &s) {
+	bool setup(const Settings &s=Settings()) {
 		int result;
 		result = nng_req0_open(&socket_);
 		if(result != 0) {

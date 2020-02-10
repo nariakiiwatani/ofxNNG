@@ -20,25 +20,23 @@ public:
 		bool polyamorous_mode=true;
 		bool allow_callback_from_other_thread=false;
 	};
-	template<typename T>
-	bool setup(const Settings &s, const std::function<void(T&&)> &callback) {
+	bool setup(const Settings &s=Settings()) {
 		if(!setupInternal(s, callback)) {
 			return false;
 		}
-		callback_ = [callback](Message msg) {
-			callback(msg.get<T>());
-		};
 		return true;
 	}
 	template<typename T>
-	bool setup(const Settings &s, const std::function<void(T&&, nng_pipe)> &callback) {
-		if(!setupInternal(s, callback)) {
-			return false;
-		}
+	void setCallback(const std::function<void(T&&)> &callback) {
 		callback_ = [callback](Message msg) {
-			callback(msg.get<T>(), nng_msg_get_pipe(msg));
+			callback(msg.get<T>());
 		};
-		return true;
+	}
+	template<typename T>
+	void setCallback(const std::function<void(T&&, nng_pipe)> &callback) {
+		callback_ = [callback](Message msg) {
+			callback(msg.get<T>());
+		};
 	}
 	bool send(Message msg, nng_pipe pipe=NNG_PIPE_INITIALIZER) {
 		if(nng_pipe_id(pipe) != -1) {	// nng_pipe_id returns -1 for invalid pipe

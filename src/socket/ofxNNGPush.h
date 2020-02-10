@@ -12,8 +12,9 @@ class Push : public Node
 {
 public:
 	struct Settings {
+		Settings(){}
 	};
-	bool setup(const Settings &s) {
+	bool setup(const Settings &s=Settings()) {
 		int result;
 		result = nng_push0_open(&socket_);
 		if(result != 0) {

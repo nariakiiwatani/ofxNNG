@@ -13,19 +13,16 @@ class Pull : public Node
 {
 public:
 	struct Settings {
+		Settings(){}
 		bool allow_callback_from_other_thread=false;
 	};
-	template<typename T>
-	bool setup(const Settings &s, const std::function<void(T&&)> &callback) {
+	bool setup(const Settings &s=Settings()) {
 		int result;
 		result = nng_pull0_open(&socket_);
 		if(result != 0) {
 			ofLogError("ofxNNGPull") << "failed to open socket;" << nng_strerror(result);
 			return false;
 		}
-		callback_ = [callback](Message msg) {
-			callback(msg.get<T>());
-		};
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
 			ofAddListener(ofEvents().update, this, &Pull::update);
@@ -36,6 +33,12 @@ public:
 	}
 	~Pull() {
 		if(aio_) nng_aio_free(aio_);
+	}
+	template<typename T>
+	void setCallback(const std::function<void(T&&)> &callback) {
+		callback_ = [callback](Message msg) {
+			callback(msg.get<T>());
+		};
 	}
 private:
 	nng_aio *aio_;

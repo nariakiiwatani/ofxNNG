@@ -10,19 +10,16 @@ class Bus : public Node
 {
 public:
 	struct Settings {
+		Settings(){}
 		bool allow_callback_from_other_thread=false;
 	};
-	template<typename T>
-	bool setup(const Settings &s, const std::function<void(T&&)> &callback) {
+	bool setup(const Settings &s=Settigs()) {
 		int result;
 		result = nng_bus_open(&socket_);
 		if(result != 0) {
 			ofLogError("ofxNNGBus") << "failed to open socket; " << nng_strerror(result);
 			return false;
 		}
-		callback_ = [callback](Message msg) {
-			callback(msg.get<T>());
-		};
 		async_ = s.allow_callback_from_other_thread;
 		if(!async_) {
 			ofAddListener(ofEvents().update, this, &Bus::update);
@@ -30,6 +27,12 @@ public:
 		nng_aio_alloc(&aio_, &Bus::receive, this);
 		nng_recv_aio(socket_, aio_);
 		return true;
+	}
+	template<typename T>
+	void setCallback(const std::function<void(T&&)> &callback) {
+		callback_ = [callback](Message msg) {
+			callback(msg.get<T>());
+		};
 	}
 	bool send(Message msg, bool blocking=false) {
 		int result;
