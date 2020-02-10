@@ -77,10 +77,11 @@ public:
 		prependData(msg.data(), msg.size());
 	}
 	
-	template<typename T> std::size_t to(T &t, std::size_t offset=0) const;
+	template<typename Arg, typename ...Rest>
+	std::size_t to(std::size_t offset, Arg &arg, Rest &...rest) const;
 	template<typename T> T get(std::size_t offset=0) const {
 		T t;
-		to<T>(t, offset);
+		to<T>(offset, t);
 		return t;
 	}
 	template<typename T> void set(T &&t);
@@ -95,6 +96,7 @@ public:
 	std::size_t size() const { return nng_msg_len(msg_); }
 private:
 	void append(void){}
+	std::size_t to(std::size_t) const { return 0; }
 	nng_msg *msg_;
 	bool is_responsible_to_free_msg_=true;
 };
@@ -103,9 +105,12 @@ private:
 #include "ofxNNGMessageConvertFunction.h"
 
 namespace ofxNNG {
-	template<typename T>
-	std::size_t Message::to(T &t, std::size_t offset) const {
-		return adl_converter<typename std::remove_reference<T>::type>::from_msg(t, *this, offset);
+	template<typename Arg, typename ...Rest>
+	std::size_t Message::to(std::size_t offset, Arg &arg, Rest &...rest) const {
+		auto pos = offset;
+		pos += adl_converter<typename std::remove_reference<Arg>::type>::from_msg(arg, *this, pos);;
+		pos += to(pos, rest...);
+		return pos-offset;
 	}
 	template<typename T>
 	void Message::set(T &&t) {

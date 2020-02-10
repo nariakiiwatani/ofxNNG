@@ -140,7 +140,7 @@ namespace basic_converter {
 		pos += from_msg(size, msg, pos);
 		t.resize(size);
 		for(auto &&val : t) {
-			pos += msg.to<T>(val, pos);
+			pos += msg.to<T>(pos, val);
 		}
 		return pos-offset;
 	}
