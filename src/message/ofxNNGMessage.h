@@ -73,7 +73,7 @@ public:
 	}
 	template<typename ...Arg>
 	void prepend(Arg &&...arg) {
-		Message msg(arg...);
+		Message msg(std::forward<Arg>(arg)...);
 		prependData(msg.data(), msg.size());
 	}
 	

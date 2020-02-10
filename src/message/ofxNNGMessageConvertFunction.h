@@ -131,6 +131,29 @@ namespace basic_converter {
 	static inline Message to_msg(const ofJson &t) {
 		return to_msg(t.dump());
 	}
+#pragma mark - vector
+	template<typename T>
+	static inline std::size_t from_msg(std::vector<T> &t, const Message &msg, std::size_t offset) {
+		using size_type = std::size_t;
+		auto pos = offset;
+		size_type size;
+		pos += from_msg(size, msg, pos);
+		t.resize(size);
+		for(auto &&val : t) {
+			pos += msg.to<T>(val, pos);
+		}
+		return pos-offset;
+	}
+	template<typename T>
+	static inline Message to_msg(const std::vector<T> &t) {
+		using rawtype = typename std::remove_const<T>::type;
+		Message msg;
+		msg.append(t.size());
+		for(auto &&val : t) {
+			msg.append(std::forward<rawtype>(const_cast<rawtype&>(val)));
+		}
+		return msg;
+	}
 }
 
 template<typename T>
