@@ -118,6 +118,19 @@ namespace basic_converter {
 		msg.appendData(t.getData(), t.size());
 		return msg;
 	}
+#pragma mark - ofJson
+	static inline std::size_t from_msg(ofJson &t, const Message &msg, std::size_t offset) {
+		using size_type = std::size_t;
+		auto pos = offset;
+		size_type size;
+		pos += from_msg(size, msg, pos);
+		auto data = (const char*)msg.data();
+		t = ofJson::parse(data+pos, data+pos+size);
+		return pos+size-offset;
+	}
+	static inline Message to_msg(const ofJson &t) {
+		return to_msg(t.dump());
+	}
 }
 
 template<typename T>
