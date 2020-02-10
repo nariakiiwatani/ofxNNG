@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <string>
 #include <vector>
+#include "ofFileUtils.h"
 
 namespace ofxNNG {
 

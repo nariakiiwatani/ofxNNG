@@ -1,6 +1,10 @@
 #pragma once
 
 #include "nng.h"
+#include <map>
+#include <vector>
+#include <string>
+#include <functional>
 
 namespace ofxNNG {
 class Pipe

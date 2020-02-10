@@ -6,6 +6,7 @@
 #include "pubsub0/sub.h"
 #include "ASyncWork.h"
 #include "ofxNNGNode.h"
+#include "ofxNNGMessage.h"
 
 #include "ofLog.h"
 #include "ofEventUtils.h"
