@@ -87,9 +87,9 @@ public:
 	}
 
 	template<typename Arg, typename ...Rest>
-	void from(Arg &&arg, Rest &&...rest);
+	static Message from(Arg &&arg, Rest &&...rest);
 	template<typename T> void set(T &&t) {
-		from(std::forward<T>(t));
+		*this = from(std::forward<T>(t));
 	}
 	
 	void* data() { return nng_msg_body(msg_); }
@@ -115,9 +115,10 @@ namespace ofxNNG {
 		return pos-offset;
 	}
 	template<typename Arg, typename ...Rest>
-	void Message::from(Arg &&arg, Rest &&...rest) {
-		*this = adl_converter<typename std::remove_reference<Arg>::type>::to_msg(std::forward<Arg>(arg));
-		append(std::forward<Rest>(rest)...);
+	Message Message::from(Arg &&arg, Rest &&...rest) {
+		Message ret = adl_converter<typename std::remove_reference<Arg>::type>::to_msg(std::forward<Arg>(arg));
+		ret.append(std::forward<Rest>(rest)...);
+		return ret;
 	}
 }
 
