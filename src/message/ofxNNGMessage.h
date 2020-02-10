@@ -13,6 +13,9 @@ public:
 	Message() {
 		nng_msg_alloc(&msg_, 0);
 	}
+	Message(Message &msg):Message() {
+		*this = msg;
+	}
 	Message(const Message &msg):Message() {
 		*this = msg;
 	}
@@ -48,6 +51,9 @@ public:
 		Message msg = *this;
 		return msg;
 	}
+	void clear() {
+		nng_msg_realloc(msg_, 0);
+	}
 	operator nng_msg*() { return msg_; }
 	void setSentFlag() {
 		is_responsible_to_free_msg_ = false;
@@ -71,7 +77,7 @@ public:
 		prependData(msg.data(), msg.size());
 	}
 	
-	template<typename T> void to(T &t, std::size_t offset=0) const;
+	template<typename T> std::size_t to(T &t, std::size_t offset=0) const;
 	template<typename T> T get(std::size_t offset=0) const {
 		T t;
 		to<T>(t, offset);
@@ -98,12 +104,12 @@ private:
 
 namespace ofxNNG {
 	template<typename T>
-	void Message::to(T &t, std::size_t offset) const {
-		adl_converter<T>::from_msg(t, *this, offset);
+	std::size_t Message::to(T &t, std::size_t offset) const {
+		return adl_converter<typename std::remove_reference<T>::type>::from_msg(t, *this, offset);
 	}
 	template<typename T>
 	void Message::set(T &&t) {
-		*this = adl_converter<T>::to_msg(std::forward<T>(t));
+		*this = adl_converter<typename std::remove_reference<T>::type>::to_msg(std::forward<T>(t));
 	}
 }
 
