@@ -46,8 +46,8 @@ But you can get the same result by;
 socket.send({42, 3.14, glm::vec3(0,0,1)});
 ```
 
-And this theory is valid when receiving.  
-You can do this;
+And this theory is alive when you receive.  
+Yes you can do this;
 
 ```
 struct UserType {
@@ -61,7 +61,7 @@ socket.setup<ofxNNG::Message>([](const ofxNNG::Message &msg) {
 });
 ```
 
-But ofxNNG can do the conversion(`ofxNNG::Message -> UserType`) for you internally;
+But ofxNNG generously do the conversion(`ofxNNG::Message -> UserType`) for you internally;
 
 ```
 socket.setup<UserType>([](const UserType &msg) {
@@ -74,12 +74,21 @@ If you want to use what is not memcpy-able or you don't want to do so, you can d
 namespace ofxNNG {
 	template<>
 	struct adl_converter<UserType> {
-		static inline void from_msg(UserType &t, const ofx::nng::Message &msg, std::size_t offset=0) {
+		static inline void from_msg(UserType &t, const Message &msg, std::size_t offset) {
+			return msg.to(offset, t.name, t.pos);
 		}
-		static inline ofx::nng::Message to_msg(const UserType &t) {
-			return Message();
+		static inline Message to_msg(UserType t) {
+			return Message{t.name, t.pos};
 		}
 	};
+}
+```
+
+Or you can do the same with macro (`name` and `pos` here are members of `UserType`)
+
+```
+namespace ofxNNG {
+	OFX_NNG_ADL_CONVERTER(UserType, name, pos);
 }
 ```
 
