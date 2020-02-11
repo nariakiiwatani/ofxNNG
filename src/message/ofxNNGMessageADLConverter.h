@@ -47,6 +47,18 @@ namespace ofxNNG {
 	};
 }
 
+#pragma mark - MEMBER_CONVERTER
+#define OFX_NNG_MEMBER_CONVERTER_FROM(...) \
+std::size_t from_msg(const ofxNNG::Message &msg, std::size_t offset) { return msg.to(offset,__VA_ARGS__); }
+
+#define OFX_NNG_MEMBER_CONVERTER_TO(...) \
+ofxNNG::Message to_msg() const { return ofxNNG::Message{__VA_ARGS__}; }
+
+#define OFX_NNG_MEMBER_CONVERTER(...) \
+OFX_NNG_MEMBER_CONVERTER_FROM(__VA_ARGS__); \
+OFX_NNG_MEMBER_CONVERTER_TO(__VA_ARGS__);
+
+
 #pragma mark - PP_NARG
 /*
  * The PP_NARG macro evaluates to the number of arguments that have been
