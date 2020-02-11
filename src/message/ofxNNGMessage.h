@@ -80,6 +80,8 @@ public:
 	
 	template<typename Arg, typename ...Rest>
 	std::size_t to(std::size_t offset, Arg &arg, Rest &...rest) const;
+	template<typename Arg, typename ...Rest>
+	std::size_t to(Arg &arg, Rest &...rest) const { return to(0, arg, rest...); }
 	template<typename T> T get(std::size_t offset=0) const {
 		T t;
 		to<T>(offset, t);
@@ -95,7 +97,7 @@ public:
 	void* data() { return nng_msg_body(msg_); }
 	const void* data() const { return nng_msg_body(msg_); }
 	std::size_t size() const { return nng_msg_len(msg_); }
-private:
+protected:
 	void append(void){}
 	std::size_t to(std::size_t) const { return 0; }
 	
