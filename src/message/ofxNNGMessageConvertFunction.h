@@ -146,11 +146,10 @@ namespace basic_converter {
 	}
 	template<typename T>
 	static inline Message to_msg(const std::vector<T> &t) {
-		using rawtype = typename std::remove_const<T>::type;
 		Message msg;
 		msg.append(t.size());
 		for(auto &&val : t) {
-			msg.append(std::forward<rawtype>(const_cast<rawtype&>(val)));
+			msg.append(const_cast<T&>(val));
 		}
 		return msg;
 	}
