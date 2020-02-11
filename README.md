@@ -118,6 +118,26 @@ struct UserType {
 
 If both of them are defined, option 1 is the primary.
 
+## ofxNNG::Serialize / ofxNNG::Deserialize
+
+ofxNNG provides APIs for doing Serialize/Deserialize.  
+They are like "Adapter" for ofxNNG::Message.  
+This means that anything that can be converted from/to ofxNNG::Message can be serialized.  
+
+```
+UserType type;
+...
+// getting binary expression
+ofBuffer binary = ofxNNG::Serialize(type);
+// unzip
+ofxNNG::Deserialize(binary).to(type);
+
+// write to file
+ofxNNG::Serialize(type).write("myfile.bin");
+// read from file
+ofxNNG::Deserialize("myfile.bin").to(type);
+```
+
 # Special Thanks
 
 - [2bbb](https://github.com/2bbb/)(for reference of implementing Message conversion)
