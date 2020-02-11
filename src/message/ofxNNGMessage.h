@@ -110,7 +110,7 @@ namespace ofxNNG {
 	template<typename Arg, typename ...Rest>
 	std::size_t Message::to(std::size_t offset, Arg &arg, Rest &...rest) const {
 		auto pos = offset;
-		pos += adl_converter<typename std::remove_reference<Arg>::type>::from_msg(arg, *this, pos);;
+		pos += adl_converter<typename std::remove_reference<Arg>::type>::from_msg(arg, *this, pos);
 		pos += to(pos, rest...);
 		return pos-offset;
 	}
