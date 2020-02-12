@@ -46,7 +46,7 @@ But you can get the same result by;
 socket.send({42, 3.14, glm::vec3(0,0,1)});
 ```
 
-And this theory is alive when you receive.  
+And this theory is also alive when you receive.  
 Yes you can do this;
 
 ```
@@ -59,7 +59,7 @@ socket.setCallback<ofxNNG::Message>([](const ofxNNG::Message &msg) {
 });
 ```
 
-But ofxNNG generously do the conversion(`ofxNNG::Message -> UserType`) for you internally.  
+But ofxNNG generously does the conversion(`ofxNNG::Message -> UserType`) for you internally.  
 So all you need to do is;
 
 ```
@@ -68,6 +68,11 @@ socket.setCallback<UserType>([](const UserType &msg) {
 ```
 
 If you want to use what is not memcpy-able or you don't want to do so, you have 2 options to implement your own.  
+
+__caution:__  
+When you tall to host(s) that uses foreign endian, default conversion(memcpy) may cause an issue.  
+So it'd be better to implement them to avoid this.  
+Macro style will be the easiest solution.
 
 (Option 1). as static functions in `ofxNNG::adl_converter<UserType>`;
 
