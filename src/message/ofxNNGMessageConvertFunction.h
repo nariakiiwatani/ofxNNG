@@ -185,18 +185,60 @@ namespace basic_converter {
 		msg.appendData(t.data(), t.size());
 		return msg;
 	}
+
+
 #pragma mark - pair
 	template<typename T, typename U>
-	static inline size_type from_msg(std::pair<T,U> &p, const Message &msg, size_type offset) {
+	static inline size_type from_msg(std::pair<T,U> &t, const Message &msg, size_type offset) {
 		auto pos = offset;
-		pos += msg.to(pos, const_cast<typename std::remove_const<T>::type&>(p.first));
-		pos += msg.to(pos, const_cast<typename std::remove_const<U>::type&>(p.second));
+		pos += msg.to(pos,
+					  const_cast<typename std::remove_const<T>::type&>(t.first),
+					  const_cast<typename std::remove_const<U>::type&>(t.second)
+					  );
 		return pos-offset;
 	}
 	template<typename T, typename U>
-	static inline Message to_msg(const std::pair<T,U> &p) {
+	static inline Message to_msg(const std::pair<T,U> &t) {
 		Message msg;
-		msg.append(const_cast<T&>(p.first), const_cast<U&>(p.second));
+		msg.append(
+				   const_cast<typename std::remove_const<T>::type&>(t.first),
+				   const_cast<typename std::remove_const<U>::type&>(t.second)
+				   );
+		return msg;
+	}
+#pragma mark - tuple
+	namespace {
+		template<typename T, std::size_t ...I>
+		auto msg_to_fun(size_type offset, const Message &msg, T &t, nlohmann::detail::index_sequence<I...>)
+		-> decltype(msg.to(offset,const_cast<typename std::remove_cv<decltype(std::get<I>(t))>::type>(std::get<I>(t))...)) {
+			return msg.to(offset, const_cast<typename std::remove_cv<decltype(std::get<I>(t))>::type>(std::get<I>(t))...);
+		}
+		template<typename T, std::size_t N=std::tuple_size<T>::value>
+		auto msg_to(size_type offset, const Message &msg, T &t)
+		-> decltype(msg_to_fun(offset, msg, t, nlohmann::detail::make_index_sequence<N>{})) {
+			return msg_to_fun(offset, msg, t, nlohmann::detail::make_index_sequence<N>{});
+		}
+		template<typename T, std::size_t ...I>
+		auto msg_append_fun(Message &msg, const T &t, nlohmann::detail::index_sequence<I...>)
+		-> decltype(msg.append(std::get<I>(t)...)) {
+			return msg.append(std::get<I>(t)...);
+		}
+		template<typename T, std::size_t N=std::tuple_size<T>::value>
+		auto msg_append(Message &msg, const T &t)
+		-> decltype(msg_append_fun(msg, t, nlohmann::detail::make_index_sequence<N>{})) {
+			return msg_append_fun(msg, t, nlohmann::detail::make_index_sequence<N>{});
+		}
+	}
+	template<typename ...T>
+	inline size_type from_msg(std::tuple<T...> &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		pos += msg_to(pos, msg, t);
+		return pos-offset;
+	}
+	template<typename ...T>
+	inline Message to_msg(const std::tuple<T...> &t) {
+		Message msg;
+		msg_append(msg, t);
 		return msg;
 	}
 }
