@@ -7,11 +7,13 @@
 #include "ofFileUtils.h"
 
 namespace ofxNNG {
+	namespace {
+		using size_type = typename Message::size_type;
+	}
 
 namespace basic_converter {
 #pragma mark - ofxNNGMessage
-	static inline std::size_t from_msg(Message &t, const Message &msg, std::size_t offset) {
-		using size_type = decltype(t.size());
+	static inline size_type from_msg(Message &t, const Message &msg, size_type offset) {
 		size_type size = *reinterpret_cast<const size_type*>((const char*)msg.data()+offset);
 		t.clear();
 		t.append(size);
@@ -33,10 +35,10 @@ namespace basic_converter {
 #pragma mark - arithmetic
 	template<typename T, typename Type=void>
 	using enable_if_arithmetic_t = typename std::enable_if<std::is_arithmetic<typename std::remove_reference<T>::type>::value, Type>::type;
-	template<typename T, std::size_t size=sizeof(T)>
-	static inline auto from_msg(T &t, const Message &msg, std::size_t offset)
-	-> enable_if_arithmetic_t<T, std::size_t> {
-		using size_type = decltype(sizeof(T));
+	template<typename T>
+	static inline auto from_msg(T &t, const Message &msg, size_type offset)
+	-> enable_if_arithmetic_t<T, size_type> {
+		size_type size = sizeof(T);
 		Message copy;
 		copy.appendData((const char*)msg.data()+offset, size);
 		switch(size) {
@@ -47,9 +49,10 @@ namespace basic_converter {
 		}
 		return size;
 	}
-	template<typename T, std::size_t size=sizeof(T)>
+	template<typename T>
 	static inline auto to_msg(T &&t)
 	-> enable_if_arithmetic_t<T, Message> {
+		size_type size = sizeof(T);
 		Message msg;
 		switch(size) {
 			case 1: nng_msg_append(msg, &t, size); break;
@@ -59,7 +62,6 @@ namespace basic_converter {
 		}
 		return msg;
 	}
-
 	
 #pragma mark - trivially_copyable
 	template<typename T, typename Type=void>
@@ -68,9 +70,8 @@ namespace basic_converter {
 		!std::is_arithmetic<typename std::remove_reference<T>::type>::value
 		, Type>::type;
 	template<typename T>
-	static inline auto from_msg(T &t, const Message &msg, std::size_t offset)
-	-> enable_if_should_memcpy_t<T, std::size_t> {
-		using size_type = decltype(sizeof(T));
+	static inline auto from_msg(T &t, const Message &msg, size_type offset)
+	-> enable_if_should_memcpy_t<T, size_type> {
 		auto pos = offset;
 		size_type size = sizeof(T);
 		pos += sizeof(size_type);
@@ -87,8 +88,7 @@ namespace basic_converter {
 		return msg;
 	}
 #pragma mark - std::string
-	static inline std::size_t from_msg(std::string &t, const Message &msg, std::size_t offset) {
-		using size_type = decltype(t.size());
+	static inline size_type from_msg(std::string &t, const Message &msg, size_type offset) {
 		auto pos = offset;
 		size_type size;
 		pos += msg.to(pos, size);
@@ -103,8 +103,7 @@ namespace basic_converter {
 		return msg;
 	}
 #pragma mark - ofBuffer
-	static inline std::size_t from_msg(ofBuffer &t, const Message &msg, std::size_t offset) {
-		using size_type = decltype(t.size());
+	static inline size_type from_msg(ofBuffer &t, const Message &msg, size_type offset) {
 		auto pos = offset;
 		size_type size;
 		pos += msg.to(pos, size);
@@ -119,8 +118,7 @@ namespace basic_converter {
 		return msg;
 	}
 #pragma mark - ofJson
-	static inline std::size_t from_msg(ofJson &t, const Message &msg, std::size_t offset) {
-		using size_type = std::size_t;
+	static inline size_type from_msg(ofJson &t, const Message &msg, size_type offset) {
 		auto pos = offset;
 		size_type size;
 		pos += msg.to(pos, size);
@@ -133,8 +131,7 @@ namespace basic_converter {
 	}
 #pragma mark - vector
 	template<typename T>
-	static inline std::size_t from_msg(std::vector<T> &t, const Message &msg, std::size_t offset) {
-		using size_type = std::size_t;
+	static inline size_type from_msg(std::vector<T> &t, const Message &msg, size_type offset) {
 		auto pos = offset;
 		size_type size;
 		pos += msg.to(pos, size);
@@ -155,7 +152,7 @@ namespace basic_converter {
 	}
 #pragma mark - pair
 	template<typename T, typename U>
-	static inline std::size_t from_msg(std::pair<T,U> &p, const Message &msg, std::size_t offset) {
+	static inline size_type from_msg(std::pair<T,U> &p, const Message &msg, size_type offset) {
 		auto pos = offset;
 		pos += msg.to(pos, p.first);
 		pos += msg.to(pos, p.second);
@@ -169,8 +166,7 @@ namespace basic_converter {
 	}
 #pragma mark - map
 	template<typename T, typename U>
-	static inline std::size_t from_msg(std::map<T,U> &m, const Message &msg, std::size_t offset) {
-		using size_type = std::size_t;
+	static inline size_type from_msg(std::map<T,U> &m, const Message &msg, size_type offset) {
 		auto pos = offset;
 		size_type size;
 		pos += msg.to(pos, size);

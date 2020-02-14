@@ -10,6 +10,7 @@ namespace ofxNNG {
 class Message
 {
 public:
+	using size_type = std::size_t;
 	Message() {
 		nng_msg_alloc(&msg_, 0);
 	}
@@ -59,7 +60,7 @@ public:
 		is_responsible_to_free_msg_ = false;
 	}
 	
-	void appendData(const void *data, std::size_t size) {
+	void appendData(const void *data, size_type size) {
 		nng_msg_append(msg_, data, size);
 	}
 	template<typename Arg, typename ...Rest>
@@ -69,7 +70,7 @@ public:
 		appendData(msg.data(), msg.size());
 		append(std::forward<Rest>(rest)...);
 	}
-	void prependData(const void *data, std::size_t size) {
+	void prependData(const void *data, size_type size) {
 		nng_msg_insert(msg_, data, size);
 	}
 	template<typename ...Arg>
@@ -79,10 +80,10 @@ public:
 	}
 	
 	template<typename Arg, typename ...Rest>
-	std::size_t to(std::size_t offset, Arg &arg, Rest &...rest) const;
+	size_type to(size_type offset, Arg &arg, Rest &...rest) const;
 	template<typename Arg, typename ...Rest>
-	std::size_t to(Arg &arg, Rest &...rest) const { return to(0, arg, rest...); }
-	template<typename T> T get(std::size_t offset=0) const {
+	size_type to(Arg &arg, Rest &...rest) const { return to(0, arg, rest...); }
+	template<typename T> T get(size_type offset=0) const {
 		T t;
 		to<T>(offset, t);
 		return t;
@@ -96,10 +97,10 @@ public:
 	
 	void* data() { return nng_msg_body(msg_); }
 	const void* data() const { return nng_msg_body(msg_); }
-	std::size_t size() const { return nng_msg_len(msg_); }
+	size_type size() const { return nng_msg_len(msg_); }
 protected:
 	void append(void){}
-	std::size_t to(std::size_t) const { return 0; }
+	size_type to(size_type) const { return 0; }
 	
 	nng_msg *msg_;
 	bool is_responsible_to_free_msg_=true;
@@ -110,7 +111,7 @@ protected:
 
 namespace ofxNNG {
 	template<typename Arg, typename ...Rest>
-	std::size_t Message::to(std::size_t offset, Arg &arg, Rest &...rest) const {
+	size_type Message::to(size_type offset, Arg &arg, Rest &...rest) const {
 		auto pos = offset;
 		pos += adl_converter<typename std::remove_reference<Arg>::type>::from_msg(arg, *this, pos);
 		pos += to(pos, rest...);
