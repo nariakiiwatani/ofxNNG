@@ -91,7 +91,7 @@ namespace basic_converter {
 		using size_type = decltype(t.size());
 		auto pos = offset;
 		size_type size;
-		pos += from_msg(size, msg, pos);
+		pos += msg.to(pos, size);
 		auto data = (const char*)msg.data();
 		t = std::string(data+pos, size);
 		return pos+size-offset;
@@ -107,7 +107,7 @@ namespace basic_converter {
 		using size_type = decltype(t.size());
 		auto pos = offset;
 		size_type size;
-		pos += from_msg(size, msg, pos);
+		pos += msg.to(pos, size);
 		auto data = (const char*)msg.data();
 		t.set(data+pos, size);
 		return pos+size-offset;
@@ -123,13 +123,13 @@ namespace basic_converter {
 		using size_type = std::size_t;
 		auto pos = offset;
 		size_type size;
-		pos += from_msg(size, msg, pos);
+		pos += msg.to(pos, size);
 		auto data = (const char*)msg.data();
 		t = ofJson::parse(data+pos, data+pos+size);
 		return pos+size-offset;
 	}
 	static inline Message to_msg(const ofJson &t) {
-		return to_msg(t.dump());
+		return Message{t.dump()};
 	}
 #pragma mark - vector
 	template<typename T>
@@ -137,10 +137,10 @@ namespace basic_converter {
 		using size_type = std::size_t;
 		auto pos = offset;
 		size_type size;
-		pos += from_msg(size, msg, pos);
+		pos += msg.to(pos, size);
 		t.resize(size);
 		for(auto &&val : t) {
-			pos += msg.to<T>(pos, val);
+			pos += msg.to(pos, val);
 		}
 		return pos-offset;
 	}
