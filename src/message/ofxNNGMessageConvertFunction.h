@@ -87,21 +87,6 @@ namespace basic_converter {
 		msg.appendData(&t, sizeof(T));
 		return msg;
 	}
-#pragma mark - std::string
-	static inline size_type from_msg(std::string &t, const Message &msg, size_type offset) {
-		auto pos = offset;
-		size_type size;
-		pos += msg.to(pos, size);
-		auto data = (const char*)msg.data();
-		t = std::string(data+pos, size);
-		return pos+size-offset;
-	}
-	static inline Message to_msg(const std::string &t) {
-		Message msg;
-		msg.append(t.size());
-		msg.appendData(t.data(), t.size());
-		return msg;
-	}
 #pragma mark - ofBuffer
 	static inline size_type from_msg(ofBuffer &t, const Message &msg, size_type offset) {
 		auto pos = offset;
@@ -129,33 +114,83 @@ namespace basic_converter {
 	static inline Message to_msg(const ofJson &t) {
 		return Message{t.dump()};
 	}
-#pragma mark - vector
+#pragma mark - container
+	namespace {
+		template<typename T, typename = void>
+		struct is_container : std::false_type {};
+		
+		template<typename... Ts>
+		struct is_container_helper {};
+		
+		template<typename T>
+		struct is_container<T,
+			typename std::conditional<
+				false,
+				is_container_helper<
+					typename T::value_type,
+					typename T::size_type,
+					typename T::allocator_type,
+					typename T::iterator,
+					typename T::const_iterator,
+					decltype(std::declval<T>().size()),
+					decltype(std::declval<T>().begin()),
+					decltype(std::declval<T>().end()),
+					decltype(std::declval<T>().cbegin()),
+					decltype(std::declval<T>().cend())
+				>,
+				void
+			>::type
+		> : public std::true_type {};
+
+		template<typename T, typename U=void>
+		using enable_if_container_t = typename std::enable_if<is_container<T>::value, U>::type;
+	}
 	template<typename T>
-	static inline size_type from_msg(std::vector<T> &t, const Message &msg, size_type offset) {
+	static inline auto from_msg(T &t, const Message &msg, size_type offset) 
+	-> enable_if_container_t<T, size_type> {
 		auto pos = offset;
 		size_type size;
 		pos += msg.to(pos, size);
-		t.resize(size);
-		for(auto &&val : t) {
-			pos += msg.to(pos, val);
+		for(auto i = 0; i < size; ++i) {
+			typename T::value_type v;
+			pos += msg.to(pos, v);
+			t.insert(std::end(t), std::move(v));
 		}
 		return pos-offset;
 	}
 	template<typename T>
-	static inline Message to_msg(const std::vector<T> &t) {
+	static inline auto to_msg(const T &t)
+	-> enable_if_container_t<T, Message> {
 		Message msg;
 		msg.append(t.size());
 		for(auto &&val : t) {
-			msg.append(const_cast<T&>(val));
+			msg.append(const_cast<typename T::value_type&>(val));
 		}
+		return msg;
+	}
+#pragma mark - std::string specialization
+	template<>
+	inline size_type from_msg<std::string>(std::string &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		size_type size;
+		pos += msg.to(pos, size);
+		auto data = (const char*)msg.data();
+		t = std::string(data+pos, size);
+		return pos+size-offset;
+	}
+	template<>
+	inline Message to_msg<std::string>(const std::string &t) {
+		Message msg;
+		msg.append(t.size());
+		msg.appendData(t.data(), t.size());
 		return msg;
 	}
 #pragma mark - pair
 	template<typename T, typename U>
 	static inline size_type from_msg(std::pair<T,U> &p, const Message &msg, size_type offset) {
 		auto pos = offset;
-		pos += msg.to(pos, p.first);
-		pos += msg.to(pos, p.second);
+		pos += msg.to(pos, const_cast<typename std::remove_const<T>::type&>(p.first));
+		pos += msg.to(pos, const_cast<typename std::remove_const<U>::type&>(p.second));
 		return pos-offset;
 	}
 	template<typename T, typename U>
@@ -164,30 +199,7 @@ namespace basic_converter {
 		msg.append(const_cast<T&>(p.first), const_cast<U&>(p.second));
 		return msg;
 	}
-#pragma mark - map
-	template<typename T, typename U>
-	static inline size_type from_msg(std::map<T,U> &m, const Message &msg, size_type offset) {
-		auto pos = offset;
-		size_type size;
-		pos += msg.to(pos, size);
-		for(auto i = 0; i < size; ++i) {
-			std::pair<T,U> p;
-			pos += msg.to(pos, p);
-			m.insert(p);
-		}
-		return pos-offset;
-	}
-	template<typename T, typename U>
-	static inline Message to_msg(const std::map<T,U> &m) {
-		Message msg;
-		msg.append(m.size());
-		for(auto &&p : m) {
-			msg.append(p);
-		}
-		return msg;
-	}
 }
-
 }
 
 #include "ofxNNGMessageADLConverter.h"
