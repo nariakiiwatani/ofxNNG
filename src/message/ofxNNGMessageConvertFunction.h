@@ -153,6 +153,43 @@ namespace basic_converter {
 		}
 		return msg;
 	}
+#pragma mark - pair
+	template<typename T, typename U>
+	static inline std::size_t from_msg(std::pair<T,U> &p, const Message &msg, std::size_t offset) {
+		auto pos = offset;
+		pos += msg.to(pos, p.first);
+		pos += msg.to(pos, p.second);
+		return pos-offset;
+	}
+	template<typename T, typename U>
+	static inline Message to_msg(const std::pair<T,U> &p) {
+		Message msg;
+		msg.append(const_cast<T&>(p.first), const_cast<U&>(p.second));
+		return msg;
+	}
+#pragma mark - map
+	template<typename T, typename U>
+	static inline std::size_t from_msg(std::map<T,U> &m, const Message &msg, std::size_t offset) {
+		using size_type = std::size_t;
+		auto pos = offset;
+		size_type size;
+		pos += msg.to(pos, size);
+		for(auto i = 0; i < size; ++i) {
+			std::pair<T,U> p;
+			pos += msg.to(pos, p);
+			m.insert(p);
+		}
+		return pos-offset;
+	}
+	template<typename T, typename U>
+	static inline Message to_msg(const std::map<T,U> &m) {
+		Message msg;
+		msg.append(m.size());
+		for(auto &&p : m) {
+			msg.append(p);
+		}
+		return msg;
+	}
 }
 
 }
