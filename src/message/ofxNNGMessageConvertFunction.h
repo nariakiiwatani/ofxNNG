@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "ofFileUtils.h"
+#include "ofJson.h"
 
 namespace ofxNNG {
 	namespace {

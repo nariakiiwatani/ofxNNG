@@ -7,6 +7,7 @@
 #include "ASyncWork.h"
 #include "ofxNNGMessage.h"
 #include "ofxNNGNode.h"
+#include "ofThreadChannel.h"
 
 namespace ofxNNG {
 class Pull : public Node
