@@ -23,9 +23,11 @@ public:
 		}
 		return true;
 	}
-	bool send(Message msg) {
+	bool send(Message msg, bool blocking=false) {
 		int result;
-		result = nng_sendmsg(socket_, msg, 0);
+		int flags = 0;
+		if(!blocking) flags |= NNG_FLAG_NONBLOCK;
+		result = nng_sendmsg(socket_, msg, flags);
 		if(result != 0) {
 			ofLogError("ofxNNGPush") << "failed to send message; " << nng_strerror(result);
 			return false;
