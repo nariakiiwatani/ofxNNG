@@ -101,30 +101,5 @@ private:
 			callback_(std::move(msg));
 		}
 	}
-	template<typename Callback>
-	bool setupInternal(const Settings &s, const Callback &callback) {
-		int result;
-		switch(s.version) {
-			case 0:
-				result = nng_pair0_open(&socket_);
-				break;
-			default:
-				ofLogWarning("ofxNNGPair") << "version number must be 0 or 1. setting up as version 1.";
-			case 1:
-				result = nng_pair1_open(&socket_);
-				break;
-		}
-		if(result != 0) {
-			ofLogError("ofxNNGPair") << "failed to open socket; " << nng_strerror(result);
-			return false;
-		}
-		nng_setopt_bool(socket_, NNG_OPT_PAIR1_POLY, s.polyamorous_mode);
-		async_ = s.allow_callback_from_other_thread;
-		if(!async_) {
-			ofAddListener(ofEvents().update, this, &Pair::update);
-		}
-		nng_aio_alloc(&aio_, &Pair::receive, this);
-		nng_recv_aio(socket_, aio_);
-		return true;	}
 };
 }
