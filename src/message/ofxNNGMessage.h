@@ -117,7 +117,8 @@ namespace ofxNNG {
 	}
 	template<typename Arg, typename ...Rest>
 	void Message::appendTo(Message &msg, Arg &&arg, Rest &&...rest) {
-		adl_converter<typename std::remove_reference<Arg>::type>::append_to_msg(msg, std::forward<Arg>(arg));
+		using rawtype = typename std::remove_cv<typename std::remove_reference<Arg>::type>::type;
+		adl_converter<rawtype>::append_to_msg(msg, std::forward<Arg>(arg));
 		appendTo(msg, std::forward<Rest>(rest)...);
 	}
 }
