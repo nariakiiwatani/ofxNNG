@@ -143,9 +143,8 @@ namespace basic_converter {
 			msg.append(const_cast<typename T::value_type&>(val));
 		}
 	}
-#pragma mark - std::string specialization
-	template<>
-	inline size_type from_msg<std::string>(std::string &t, const Message &msg, size_type offset) {
+#pragma mark - std::string
+	static inline size_type from_msg(std::string &t, const Message &msg, size_type offset) {
 		auto pos = offset;
 		size_type size;
 		pos += msg.to(pos, size);
@@ -153,8 +152,7 @@ namespace basic_converter {
 		t = std::string(data+pos, size);
 		return pos+size-offset;
 	}
-	template<>
-	inline void append_to_msg<std::string>(Message &msg, const std::string &t) {
+	static inline void append_to_msg(Message &msg, const std::string &t) {
 		msg.append(t.size());
 		msg.appendData(t.data(), t.size());
 	}
