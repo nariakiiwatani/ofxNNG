@@ -2,23 +2,33 @@
 
 //--------------------------------------------------------------
 void ofApp::setup(){
+	using std::string;
+	using std::cout;
+	using std::endl;
+	
 	ofxNNG::Pair::Settings pairs;
 	pairs.polyamorous_mode = true;
 	pairs.allow_callback_from_other_thread=false;
-	node0_.setup<ofBuffer>(pairs, [this](const ofBuffer &buffer, nng_pipe pipe) {
-		cout << "node0: got message from pipe:" << nng_pipe_id(pipe) << endl;
-		cout << buffer.getText() << endl;
-		node0_.send("this is reply from node0", pipe);
+	
+	// connection diagram; node1 <--> node0 <--> node2
+	node0_.setup(pairs);
+	node0_.setCallback<string>([this](const string &str, nng_pipe pipe) {
+		cout << "node0: got a message from pipe:" << nng_pipe_id(pipe) << endl;
+		cout << str << endl;
+		// node0 is connected to both nodes but it can specify which to send by suggesting a pipe
+		node0_.send("this is a reply from node0", false, pipe);
 	});
-	node1_.setup<ofBuffer>(pairs, [](const ofBuffer &buffer, nng_pipe pipe) {
-		cout << "node1: got reply from pipe:" << nng_pipe_id(pipe) << endl;
-		cout << buffer.getText() << endl;
+	node1_.setup(pairs);
+	node1_.setCallback<string>([](const string &str, nng_pipe pipe) {
+		cout << "node1: got a reply from pipe:" << nng_pipe_id(pipe) << endl;
+		cout << str << endl;
 	});
-	node2_.setup<ofBuffer>(pairs, [](const ofBuffer &buffer, nng_pipe pipe) {
-		cout << "node2: got reply from pipe:" << nng_pipe_id(pipe) << endl;
-		cout << buffer.getText() << endl;
+	node2_.setup(pairs);
+	node2_.setCallback<string>([](const string &str, nng_pipe pipe) {
+		cout << "node2: got a reply from pipe:" << nng_pipe_id(pipe) << endl;
+		cout << str << endl;
 	});
-	std::string url = "inproc://test";
+	string url = "inproc://test";
 	node0_.createListener(url)->start();
 	node1_.createDialer(url)->start();
 	node2_.createDialer(url)->start();
@@ -38,10 +48,10 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
 	switch(key) {
 		case OF_KEY_LEFT:
-			node1_.send("message from node1");
+			node1_.send("this is a message from node1");
 			break;
 		case OF_KEY_RIGHT:
-			node2_.send("message from node2");
+			node2_.send("this is a message from node2");
 			break;
 	}
 }

@@ -4,13 +4,12 @@ using namespace ofxNNG;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-	Push::Settings pushs;
-	push_.setup(pushs);
+	push_.setup();
 	push_.createListener("inproc://test")->start();
 	
-	Pull::Settings pulls;
-	pull_.setup<ofBuffer>(pulls, [](const ofBuffer &buffer) {
-		ofLogNotice("pull") << buffer.getText();
+	pull_.setup();
+	pull_.setCallback<int>([](const int &buffer) {
+		ofLogNotice("pull") << buffer;
 	});
 	pull_.createDialer("inproc://test")->start();
 }

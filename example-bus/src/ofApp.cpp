@@ -4,13 +4,13 @@ using namespace ofxNNG;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-	// 4 buses make all-to-all mesh connection 
+	// 4 buses making all-to-all mesh connection 
 	bus_.resize(4);
-	Bus::Settings buss;
 	for(int i = 0; i < bus_.size(); ++i) {
 		auto &b = bus_[i];
 		b = std::make_shared<Bus>();
-		b->setup<std::string>(buss, [i](const std::string &message) {
+		b->setup();
+		b->setCallback<std::string>([i](const std::string &message) {
 			ofLogNotice("bus "+ofToString(i)+" receive") << message;
 		});
 		std::string recv_url = "inproc://bus"+ofToString(i);

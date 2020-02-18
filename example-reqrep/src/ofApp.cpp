@@ -3,12 +3,13 @@
 using namespace ofxNNG;
 //--------------------------------------------------------------
 void ofApp::setup(){
-	Rep::Settings reps;
 	// setup with a bool function for replying.
 	// if it returns true the output arg will be sent to the peer else nothing will be sent.
 	// the types of input and output args can be anything that can convert from/to ofxNNG::Message.
-	rep_.setup<ofBuffer, ofBuffer>(reps, [](const ofBuffer &request, ofBuffer &response) {
-		response = request;	// simple echo
+	rep_.setup();
+	// callback that receives int as request and return std::string as response 
+	rep_.setCallback<int, std::string>([](const int &request, std::string &response) {
+		response = ofToString(request);
 		return true;
 	});
 	// easiest way to start listener

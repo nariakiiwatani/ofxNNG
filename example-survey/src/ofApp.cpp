@@ -5,9 +5,7 @@ using namespace std;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-	Surveyor::Settings surveys;
-	surveys.allow_callback_from_other_thread = false;
-	survey_.setup(surveys);
+	survey_.setup();
 	survey_.createListener("inproc://test")->start();
 
 	const vector<string> names{
@@ -18,10 +16,10 @@ void ofApp::setup(){
 		"bang",
 		"circle"
 	};
-	Respondent::Settings responds;
 	for(auto &&n : names) {
 		auto r = std::make_shared<ofxNNG::Respondent>();
-		r->setup<char, string>(responds, [n](const char &request, string& response) {
+		r->setup();
+		r->setCallback<char, string>([n](const char &request, string& response) {
 			response = n + " is here!";
 			return n[0] == request;
 		});
