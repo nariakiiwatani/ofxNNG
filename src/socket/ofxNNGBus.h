@@ -13,7 +13,7 @@ public:
 		Settings(){}
 		bool allow_callback_from_other_thread=false;
 	};
-	bool setup(const Settings &s=Settigs()) {
+	bool setup(const Settings &s=Settings()) {
 		int result;
 		result = nng_bus_open(&socket_);
 		if(result != 0) {
