@@ -15,15 +15,35 @@ class Pair : public Node
 {
 public:
 	struct Settings {
-		int version = 1;
+		Settings(){};
 		
+		int version = 1;
 		bool polyamorous_mode=true;
 		bool allow_callback_from_other_thread=false;
 	};
 	bool setup(const Settings &s=Settings()) {
-		if(!setupInternal(s, callback)) {
+		int result;
+		switch(s.version) {
+			case 0:
+				result = nng_pair0_open(&socket_);
+				break;
+			default:
+				ofLogWarning("ofxNNGPair") << "version number must be 0 or 1. setting up as version 1.";
+			case 1:
+				result = nng_pair1_open(&socket_);
+				break;
+		}
+		if(result != 0) {
+			ofLogError("ofxNNGPair") << "failed to open socket; " << nng_strerror(result);
 			return false;
 		}
+		nng_setopt_bool(socket_, NNG_OPT_PAIR1_POLY, s.polyamorous_mode);
+		async_ = s.allow_callback_from_other_thread;
+		if(!async_) {
+			ofAddListener(ofEvents().update, this, &Pair::update);
+		}
+		nng_aio_alloc(&aio_, &Pair::receive, this);
+		nng_recv_aio(socket_, aio_);
 		return true;
 	}
 	template<typename T>
@@ -38,12 +58,14 @@ public:
 			callback(msg.get<T>());
 		};
 	}
-	bool send(Message msg, nng_pipe pipe=NNG_PIPE_INITIALIZER) {
+	bool send(Message msg, bool blocking = false, nng_pipe pipe=NNG_PIPE_INITIALIZER) {
 		if(nng_pipe_id(pipe) != -1) {	// nng_pipe_id returns -1 for invalid pipe
 			nng_msg_set_pipe(msg, pipe);
 		}
 		int result;
-		result = nng_sendmsg(socket_, msg, NNG_FLAG_NONBLOCK);
+		int flags = 0;
+		if(!blocking) flags |= NNG_FLAG_NONBLOCK;
+		result = nng_sendmsg(socket_, msg, flags);
 		if(result != 0) {
 			ofLogError("ofxNNGPair") << "failed to send message; " << nng_strerror(result);
 			return false;
