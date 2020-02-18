@@ -90,13 +90,16 @@ private:
 	}
 	void reply(aio::Work *work) {
 		Message msg(nng_aio_get_msg(work->aio));
-		if(!callback_(msg)) {
-			return;
+		if(callback_(msg)) {
+			nng_aio_set_msg(work->aio, msg);
+			work->state = aio::SEND;
+			nng_ctx_send(work->ctx, work->aio);
+			msg.setSentFlag();
 		}
-		nng_aio_set_msg(work->aio, msg);
-		work->state = aio::SEND;
-		nng_ctx_send(work->ctx, work->aio);
-		msg.setSentFlag();
+		else {
+			work->state = aio::RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+		}
 	}
 };
 }
