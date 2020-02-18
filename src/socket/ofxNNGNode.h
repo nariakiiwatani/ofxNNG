@@ -26,6 +26,11 @@ public:
 	void setEventCallback(nng_pipe_ev event, std::function<void(nng_pipe)> func) {
 		event_listener_[event] = func;
 	}
+	void setEventCallback(nng_pipe_ev event, std::function<void()> func) {
+		event_listener_[event] = [=](nng_pipe) {
+			func();
+		};
+	}
 protected:
 	nng_socket socket_;
 private:
