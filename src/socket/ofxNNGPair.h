@@ -52,7 +52,7 @@ public:
 	template<typename T>
 	void setCallback(const std::function<void(T&&, nng_pipe)> &callback) {
 		callback_ = [callback](Message msg) {
-			callback(msg.get<T>());
+			callback(msg.get<T>(), nng_msg_get_pipe(msg));
 		};
 	}
 	bool send(Message msg, bool blocking = false, nng_pipe pipe=NNG_PIPE_INITIALIZER) {
