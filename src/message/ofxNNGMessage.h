@@ -65,10 +65,7 @@ public:
 	}
 	template<typename Arg, typename ...Rest>
 	void append(Arg &&arg, Rest &&...rest) {
-		Message msg;
-		msg.set(std::forward<Arg>(arg));
-		appendData(msg.data(), msg.size());
-		append(std::forward<Rest>(rest)...);
+		appendTo(*this, std::forward<Arg>(arg), std::forward<Rest>(rest)...);
 	}
 	void prependData(const void *data, size_type size) {
 		nng_msg_insert(msg_, data, size);
@@ -90,16 +87,17 @@ public:
 	}
 
 	template<typename Arg, typename ...Rest>
-	static Message from(Arg &&arg, Rest &&...rest);
+	static void appendTo(Message &msg, Arg &&arg, Rest &&...rest);
 	template<typename T> void set(T &&t) {
-		*this = from(std::forward<T>(t));
+		clear();
+		appendTo(*this, std::forward<T>(t));
 	}
 	
 	void* data() { return nng_msg_body(msg_); }
 	const void* data() const { return nng_msg_body(msg_); }
 	size_type size() const { return nng_msg_len(msg_); }
 protected:
-	void append(void){}
+	static void appendTo(Message&){}
 	size_type to(size_type) const { return 0; }
 	
 	nng_msg *msg_;
@@ -118,10 +116,9 @@ namespace ofxNNG {
 		return pos-offset;
 	}
 	template<typename Arg, typename ...Rest>
-	Message Message::from(Arg &&arg, Rest &&...rest) {
-		Message ret = adl_converter<typename std::remove_reference<Arg>::type>::to_msg(std::forward<Arg>(arg));
-		ret.append(std::forward<Rest>(rest)...);
-		return ret;
+	void Message::appendTo(Message &msg, Arg &&arg, Rest &&...rest) {
+		adl_converter<typename std::remove_reference<Arg>::type>::append_to_msg(msg, std::forward<Arg>(arg));
+		appendTo(msg, std::forward<Rest>(rest)...);
 	}
 }
 

@@ -13,14 +13,15 @@ namespace ofxNNG {
 		using has_from_msg = decltype(has_from_msg_impl::check<V>(std::declval<V>()));
 	}
 	namespace {
-		struct has_to_msg_impl {
+		struct has_append_to_msg_impl {
+			static Message arg;
 			template<typename V>
-			static auto check(const V &v) -> decltype(v.to_msg(), std::true_type{});
+			static auto check(const V &v) -> decltype(v.append_to_msg(arg), std::true_type{});
 			template<typename V>
 			static auto check(...) -> std::false_type{};
 		};
 		template<typename V>
-		using has_to_msg = decltype(has_to_msg_impl::check<V>(std::declval<V>()));
+		using has_append_to_msg = decltype(has_append_to_msg_impl::check<V>(std::declval<V>()));
 	}
 	template<typename T>
 	struct adl_converter {
@@ -35,14 +36,14 @@ namespace ofxNNG {
 			return ::ofxNNG::basic_converter::from_msg(v,msg,offset);
 		}
 		template<typename V>
-		static inline auto to_msg(V &&v)
-		-> typename std::enable_if<has_to_msg<V>::value, decltype(v.to_msg())>::type {
-			return v.to_msg();
+		static inline auto append_to_msg(Message &msg, V &&v)
+		-> typename std::enable_if<has_append_to_msg<V>::value, decltype(v.append_to_msg(msg))>::type {
+			return v.append_to_msg(msg);
 		}
 		template<typename V>
-		static inline auto to_msg(V &&v)
-		-> typename std::enable_if<!has_to_msg<V>::value, decltype(::ofxNNG::basic_converter::to_msg(std::forward<V>(v)))>::type {
-			return ::ofxNNG::basic_converter::to_msg(std::forward<V>(v));
+		static inline auto append_to_msg(Message &msg, V &&v)
+		-> typename std::enable_if<!has_append_to_msg<V>::value, decltype(::ofxNNG::basic_converter::append_to_msg(msg, std::forward<V>(v)))>::type {
+			return ::ofxNNG::basic_converter::append_to_msg(msg, std::forward<V>(v));
 		}
 	};
 }
@@ -52,7 +53,7 @@ namespace ofxNNG {
 std::size_t from_msg(const ofxNNG::Message &msg, std::size_t offset) { return msg.to(offset,__VA_ARGS__); }
 
 #define OFX_NNG_MEMBER_CONVERTER_TO(...) \
-ofxNNG::Message to_msg() const { return ofxNNG::Message{__VA_ARGS__}; }
+void append_to_msg(ofxNNG::Message &msg) const { ofxNNG::Message::appendTo(msg, __VA_ARGS__); }
 
 #define OFX_NNG_MEMBER_CONVERTER(...) \
 OFX_NNG_MEMBER_CONVERTER_FROM(__VA_ARGS__); \
@@ -163,7 +164,7 @@ _61,_62,_63,N,...) N
 static inline std::size_t from_msg(Type &type, const ofxNNG::Message &msg, std::size_t offset) { return msg.to(offset, GET_MEMBERS(type, __VA_ARGS__)); }
 
 #define OFX_NNG_ADL_CONVERTER_TO(Type,...) \
-static inline ofxNNG::Message to_msg(Type type) { return ofxNNG::Message{GET_MEMBERS(type, __VA_ARGS__)}; }
+static inline void append_to_msg(ofxNNG::Message &msg, Type type) { ofxNNG::Message::appendTo(msg, GET_MEMBERS(type, __VA_ARGS__)); }
 
 #define OFX_NNG_ADL_CONVERTER(Type,...) \
 template<> struct adl_converter<Type> { \

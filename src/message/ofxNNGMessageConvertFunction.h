@@ -22,15 +22,9 @@ namespace basic_converter {
 		t.appendData(data+offset+sizeof(size_type), size);
 		return sizeof(size_type)+size;
 	}
-	static inline Message to_msg(Message &&t) {
-		t.prepend(t.size());
-		return std::move(t);
-	}
-	static inline Message to_msg(const Message &t) {
-		Message ret;
-		ret.append(t.size());
-		ret.appendData(t.data(), t.size());
-		return ret;
+	static inline void append_to_msg(Message &msg, const Message &t) {
+		msg.append(t.size());
+		msg.appendData(t.data(), t.size());
 	}
 
 #pragma mark - arithmetic
@@ -51,17 +45,15 @@ namespace basic_converter {
 		return size;
 	}
 	template<typename T>
-	static inline auto to_msg(T &&t)
-	-> enable_if_arithmetic_t<T, Message> {
+	static inline auto append_to_msg(Message &msg, T &&t)
+	-> enable_if_arithmetic_t<T, void> {
 		size_type size = sizeof(T);
-		Message msg;
 		switch(size) {
 			case 1: nng_msg_append(msg, &t, size); break;
 			case 2: nng_msg_append_u16(msg, t); break;
 			case 4: nng_msg_append_u32(msg, t); break;
 			case 8: nng_msg_append_u64(msg, t); break;
 		}
-		return msg;
 	}
 	
 #pragma mark - trivially_copyable
@@ -81,12 +73,10 @@ namespace basic_converter {
 		return pos+size-offset;
 	}
 	template<typename T>
-	static inline auto to_msg(T &&t)
-	-> enable_if_should_memcpy_t<T, Message> {
-		Message msg;
+	static inline auto append_to_msg(Message &msg, T &&t)
+	-> enable_if_should_memcpy_t<T, void> {
 		msg.append(sizeof(T));
 		msg.appendData(&t, sizeof(T));
-		return msg;
 	}
 #pragma mark - ofBuffer
 	static inline size_type from_msg(ofBuffer &t, const Message &msg, size_type offset) {
@@ -97,23 +87,9 @@ namespace basic_converter {
 		t.set(data+pos, size);
 		return pos+size-offset;
 	}
-	static inline Message to_msg(const ofBuffer &t) {
-		Message msg;
+	static inline void append_to_msg(Message &msg, const ofBuffer &t) {
 		msg.append(t.size());
 		msg.appendData(t.getData(), t.size());
-		return msg;
-	}
-#pragma mark - ofJson
-	static inline size_type from_msg(ofJson &t, const Message &msg, size_type offset) {
-		auto pos = offset;
-		size_type size;
-		pos += msg.to(pos, size);
-		auto data = (const char*)msg.data();
-		t = ofJson::parse(data+pos, data+pos+size);
-		return pos+size-offset;
-	}
-	static inline Message to_msg(const ofJson &t) {
-		return Message{t.dump()};
 	}
 #pragma mark - container
 	namespace {
@@ -160,14 +136,12 @@ namespace basic_converter {
 		return pos-offset;
 	}
 	template<typename T>
-	static inline auto to_msg(const T &t)
-	-> enable_if_container_t<T, Message> {
-		Message msg;
+	static inline auto append_to_msg(Message &msg, const T &t)
+	-> enable_if_container_t<T, void> {
 		msg.append(t.size());
 		for(auto &&val : t) {
 			msg.append(const_cast<typename T::value_type&>(val));
 		}
-		return msg;
 	}
 #pragma mark - std::string specialization
 	template<>
@@ -180,14 +154,22 @@ namespace basic_converter {
 		return pos+size-offset;
 	}
 	template<>
-	inline Message to_msg<std::string>(const std::string &t) {
-		Message msg;
+	inline void append_to_msg<std::string>(Message &msg, const std::string &t) {
 		msg.append(t.size());
 		msg.appendData(t.data(), t.size());
-		return msg;
 	}
-
-
+#pragma mark - ofJson
+	static inline size_type from_msg(ofJson &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		size_type size;
+		pos += msg.to(pos, size);
+		auto data = (const char*)msg.data();
+		t = ofJson::parse(data+pos, data+pos+size);
+		return pos+size-offset;
+	}
+	static inline void append_to_msg(Message &msg, const ofJson &t) {
+		append_to_msg(msg, t.dump());
+	}
 #pragma mark - pair
 	template<typename T, typename U>
 	static inline size_type from_msg(std::pair<T,U> &t, const Message &msg, size_type offset) {
@@ -199,13 +181,11 @@ namespace basic_converter {
 		return pos-offset;
 	}
 	template<typename T, typename U>
-	static inline Message to_msg(const std::pair<T,U> &t) {
-		Message msg;
+	static inline void append_to_msg(Message &msg, const std::pair<T,U> &t) {
 		msg.append(
 				   const_cast<typename std::remove_const<T>::type&>(t.first),
 				   const_cast<typename std::remove_const<U>::type&>(t.second)
 				   );
-		return msg;
 	}
 #pragma mark - tuple
 	namespace {
@@ -237,10 +217,8 @@ namespace basic_converter {
 		return pos-offset;
 	}
 	template<typename ...T>
-	inline Message to_msg(const std::tuple<T...> &t) {
-		Message msg;
+	inline void append_to_msg(Message &msg, const std::tuple<T...> &t) {
 		msg_append(msg, t);
-		return msg;
 	}
 }
 }
