@@ -108,6 +108,7 @@ class Node
 {
 public:
 	virtual ~Node() {
+		setEnabledAutoUpdate(false);
 		close();
 	}
 	std::shared_ptr<Pipe> createDialer(const std::string &url) {
@@ -129,5 +130,20 @@ protected:
 		pipe_.emplace_back(pipe);
 		return pipe;
 	}
+	bool is_enabled_auto_update_=false;
+	void setEnabledAutoUpdate(bool enabled) {
+		if(is_enabled_auto_update_ ^ enabled) {
+			if(enabled) {
+				ofAddListener(ofEvents().update, this, &Node::update);
+			}
+			else {
+				ofRemoveListener(ofEvents().update, this, &Node::update);
+			}
+		}
+		is_enabled_auto_update_ = enabled;
+	}
+	bool isEnabledAutoUpdate() const { return is_enabled_auto_update_; }
+	void update(ofEventArgs&) { update(); }
+	virtual void update(){}
 };
 }

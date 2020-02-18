@@ -29,10 +29,7 @@ public:
 			ofLogError("ofxNNGSub") << "failed to open socket;" << nng_strerror(result);
 			return false;
 		}
-		async_ = s.allow_callback_from_other_thread;
-		if(!async_) {
-			ofAddListener(ofEvents().update, this, &Sub::update);
-		}
+		setEnabledAutoUpdate(!s.allow_callback_from_other_thread);
 		nng_aio_alloc(&aio_, &Sub::receive, this);
 		nng_recv_aio(socket_, aio_);
 		return true;
@@ -95,7 +92,6 @@ public:
 private:
 	nng_aio *aio_;
 	std::vector<std::pair<ofBuffer, std::function<void(const ofBuffer&, Message)>>> callback_;
-	bool async_;
 	ofThreadChannel<Message> channel_;
 	static void receive(void *arg) {
 		auto me = (Sub*)arg;
@@ -105,15 +101,15 @@ private:
 			return;
 		}
 		Message msg(nng_aio_get_msg(me->aio_));
-		if(me->async_) {
-			me->dispatch(std::move(msg));
+		if(me->isEnabledAutoUpdate()) {
+			me->channel_.send(std::move(msg));
 		}
 		else {
-			me->channel_.send(std::move(msg));
+			me->dispatch(std::move(msg));
 		}
 		nng_recv_aio(me->socket_, me->aio_);
 	}
-	void update(ofEventArgs&) {
+	void update() {
 		Message msg;
 		while(channel_.tryReceive(msg)) {
 			dispatch(std::move(msg));

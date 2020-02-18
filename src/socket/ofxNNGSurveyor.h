@@ -37,10 +37,7 @@ public:
 			return false;
 		}
 		timeout_ = s.timeout_milliseconds;
-		async_ = s.allow_callback_from_other_thread;
-		if(!async_) {
-			ofAddListener(ofEvents().update, this, &Surveyor::update);
-		}
+		setEnableAutoUpdate(!s.allow_callback_from_other_thread);
 		work_.initialize(s.max_queue, &Surveyor::async, this);
 		return true;
 	}
@@ -71,7 +68,6 @@ private:
 	aio::WorkPool work_;
 	std::map<int, std::function<void(Message)>> callback_;
 	nng_mtx *work_mtx_, *callback_mtx_;
-	bool async_;
 	using AsyncWork = std::pair<int, Message>;
 	ofThreadChannel<AsyncWork> channel_;
 	nng_duration timeout_;
@@ -107,17 +103,17 @@ private:
 					return;
 				}
 				AsyncWork aw{nng_ctx_id(work->ctx), nng_aio_get_msg(work->aio)};
-				if(me->async_) {
-					me->onReceiveReply(std::move(aw));
+				if(me->isEnabledAutoUpdate()) {
+					me->channel_.send(std::move(aw));
 				}
 				else {
-					me->channel_.send(std::move(aw));
+					me->onReceiveReply(std::move(aw));
 				}
 				nng_ctx_recv(work->ctx, work->aio);
 			}	break;
 		}
 	}
-	void update(ofEventArgs&) {
+	void update() {
 		AsyncWork work;
 		while(channel_.tryReceive(work)) {
 			onReceiveReply(std::move(work));

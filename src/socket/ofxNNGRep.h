@@ -25,10 +25,7 @@ public:
 			ofLogError("ofxNNGRep") << "failed to open socket;" << nng_strerror(result);
 			return false;
 		}
-		async_ = s.allow_callback_from_other_thread;
-		if(!async_) {
-			ofAddListener(ofEvents().update, this, &Rep::update);
-		}
+		setEnabledAutoUpdate(!s.allow_callback_from_other_thread);
 		work_.initialize(s.max_queue, &Rep::async, this);
 		while(auto work = work_.getUnused()) {
 			nng_ctx_open(&work->ctx, socket_);
@@ -51,7 +48,6 @@ public:
 private:
 	aio::WorkPool work_;
 	std::function<bool(Message&)> callback_;
-	bool async_;
 	ofThreadChannel<aio::Work*> channel_;
 	
 	static void async(void *arg) {
@@ -64,11 +60,11 @@ private:
 					ofLogError("ofxNNGRep") << "failed to receive message; " << nng_strerror(result);
 					return;
 				}
-				if(me->async_) {
-					me->reply(work);
+				if(me->isEnabledAutoUpdate()) {
+					me->channel_.send(work);
 				}
 				else {
-					me->channel_.send(work);
+					me->reply(work);
 				}
 			}	break;
 			case aio::SEND: {
@@ -82,7 +78,7 @@ private:
 			}	break;
 		}
 	}
-	void update(ofEventArgs&) {
+	void update() {
 		aio::Work *work;
 		while(channel_.tryReceive(work)) {
 			reply(work);

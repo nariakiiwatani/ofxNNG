@@ -38,10 +38,7 @@ public:
 			return false;
 		}
 		nng_setopt_bool(socket_, NNG_OPT_PAIR1_POLY, s.polyamorous_mode);
-		async_ = s.allow_callback_from_other_thread;
-		if(!async_) {
-			ofAddListener(ofEvents().update, this, &Pair::update);
-		}
+		setEnabledAutoUpdate(!s.allow_callback_from_other_thread);
 		nng_aio_alloc(&aio_, &Pair::receive, this);
 		nng_recv_aio(socket_, aio_);
 		return true;
@@ -76,7 +73,6 @@ public:
 private:
 	nng_aio *aio_;
 	std::function<void(Message)> callback_;
-	bool async_;
 	ofThreadChannel<Message> channel_;
 	
 	static void receive(void *arg) {
@@ -87,15 +83,15 @@ private:
 			return;
 		}
 		Message msg(nng_aio_get_msg(me->aio_));
-		if(me->async_) {
-			me->callback_(std::move(msg));
+		if(me->isEnabledAutoUpdate()) {
+			me->channel_.send(std::move(msg));
 		}
 		else {
-			me->channel_.send(std::move(msg));
+			me->callback_(std::move(msg));
 		}
 		nng_recv_aio(me->socket_, me->aio_);
 	}
-	void update(ofEventArgs&) {
+	void update() {
 		Message msg;
 		while(channel_.tryReceive(msg)) {
 			callback_(std::move(msg));
