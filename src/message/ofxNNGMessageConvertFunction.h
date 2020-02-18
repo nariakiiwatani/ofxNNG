@@ -218,6 +218,18 @@ namespace basic_converter {
 	inline void append_to_msg(Message &msg, const std::tuple<T...> &t) {
 		msg_append(msg, t);
 	}
+#pragma mark - array
+	template<typename T, size_type N>
+	inline size_type from_msg(std::array<T,N> &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		pos += msg_to(pos, msg, t);
+		return pos-offset;
+	}
+	template<typename T, size_type N>
+	static inline void append_to_msg(Message &msg, const std::array<T,N> &t) {
+		msg_append(msg, t);
+	}
+
 }
 }
 
