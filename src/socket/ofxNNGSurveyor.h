@@ -37,7 +37,7 @@ public:
 			return false;
 		}
 		timeout_ = s.timeout_milliseconds;
-		setEnableAutoUpdate(!s.allow_callback_from_other_thread);
+		setEnabledAutoUpdate(!s.allow_callback_from_other_thread);
 		work_.initialize(s.max_queue, &Surveyor::async, this);
 		return true;
 	}
