@@ -23,7 +23,7 @@ public:
 	virtual bool create(const std::string &url)=0;
 	virtual bool start(int flags=NNG_FLAG_NONBLOCK)=0;
 	virtual bool close()=0;
-	void setEventCallback(nng_pipe_ev event, std::function<void()> func) {
+	void setEventCallback(nng_pipe_ev event, std::function<void(nng_pipe)> func) {
 		event_listener_[event] = func;
 	}
 protected:
@@ -33,11 +33,11 @@ private:
 		auto me = (Pipe*)data;
 		auto callback = me->event_listener_.find(event);
 		if(callback != std::end(me->event_listener_)) {
-			callback->second();
+			callback->second(pipe);
 		}
 	}
 	static inline void event_callback_empty(nng_pipe pipe, nng_pipe_ev event, void *data) {}
-	std::map<nng_pipe_ev, std::function<void()>> event_listener_;
+	std::map<nng_pipe_ev, std::function<void(nng_pipe)>> event_listener_;
 };
 class Dialer : public Pipe
 {
