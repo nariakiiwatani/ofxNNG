@@ -38,41 +38,17 @@ public:
 		if(aio_) nng_aio_free(aio_);
 	}
 
-	template<typename T>
-	bool subscribe(const std::string &topic, std::function<void(T&&)> callback) {
-		return subscribe<T>(topic.data(), topic.size(), [=](const ofBuffer &topic, T &&msg) {
-			callback(std::forward<T>(msg));
-		});
+	template<typename T, typename F>
+	bool subscribe(F &&callback) {
+		return subscribe<T>(nullptr, 0, std::forward<F>(callback), true);
 	}
-	template<typename T>
-	bool subscribe(const std::string &topic, std::function<void(const std::string&, T&&)> callback) {
-		return subscribe<T>(topic.data(), topic.size(), [=](const ofBuffer &topic, T &&msg) {
-			callback(topic.getText(), std::forward<T>(msg));
-		});
+	template<typename T, typename F>
+	bool subscribe(const std::string &topic, F &&callback) {
+		return subscribe<T>(topic.data(), topic.size(), std::forward<F>(callback), true);
 	}
-	template<typename T>
-	bool subscribe(const void *topic_data, std::size_t topic_size, std::function<void(const ofBuffer&, T&&)> callback) {
-		int result = nng_setopt(socket_, NNG_OPT_SUB_SUBSCRIBE, topic_data, topic_size);
-		if(result != 0) {
-			ofLogError("ofxNNGSub") << "failed to subscribe topic; " << nng_strerror(result);
-			return false;
-		}
-		callback_.emplace_back(ofBuffer{(const char*)topic_data, topic_size}, [=](const ofBuffer &topic, Message msg) {
-			callback(topic, msg.get<T>(topic.size()));
-		});
-		return true;
-	}
-	template<typename T>
-	bool subscribe(std::function<void(T&&)> callback) {
-		int result = nng_setopt(socket_, NNG_OPT_SUB_SUBSCRIBE, nullptr, 0);
-		if(result != 0) {
-			ofLogError("ofxNNGSub") << "failed to subscribe topic; " << nng_strerror(result);
-			return false;
-		}
-		callback_.emplace_back(ofBuffer{nullptr, 0}, [=](const ofBuffer &topic, Message msg) {
-			callback(msg.get<T>(topic.size()));
-		});
-		return true;
+	template<typename T, typename F>
+	bool subscribe(const void *topic_data, std::size_t topic_size, F &&callback) {
+		return subscribe<T>(topic_data, topic_size, std::forward<F>(callback), true);
 	}
 	bool unsubscribe(const std::string &topic) {
 		return unsubscribe(topic.data(), topic.length());
@@ -90,6 +66,26 @@ public:
 		return true;
 	}
 private:
+	template<typename T, typename F>
+	auto subscribe(const void *topic_data, std::size_t topic_size, F &&callback, bool trim_topic)
+	-> decltype(callback(declval<T>()), bool()) {
+		return subscribe<T>(topic_data, topic_size, [callback](const ofBuffer &topic, T &&msg) {
+			callback(std::forward<T>(msg));
+		}, trim_topic);
+	}
+	template<typename T, typename F>
+	auto subscribe(const void *topic_data, std::size_t topic_size, F &&callback, bool trim_topic)
+	-> decltype(callback(declval<ofBuffer>(), declval<T>()), bool()) {
+		int result = nng_setopt(socket_, NNG_OPT_SUB_SUBSCRIBE, topic_data, topic_size);
+		if(result != 0) {
+			ofLogError("ofxNNGSub") << "failed to subscribe topic; " << nng_strerror(result);
+			return false;
+		}
+		callback_.emplace_back(ofBuffer{(const char*)topic_data, topic_size}, [=](const ofBuffer &topic, Message msg) {
+			callback(topic, msg.get<T>(trim_topic?topic.size():0));
+		});
+		return true;
+	}
 	nng_aio *aio_;
 	std::vector<std::pair<ofBuffer, std::function<void(const ofBuffer&, Message)>>> callback_;
 	ofThreadChannel<Message> channel_;
