@@ -17,7 +17,6 @@ namespace basic_converter {
 	static inline size_type from_msg(Message &t, const Message &msg, size_type offset) {
 		size_type size = *reinterpret_cast<const size_type*>((const char*)msg.data()+offset);
 		t.clear();
-		t.append(size);
 		auto data = (const char*)msg.data();
 		t.appendData(data+offset+sizeof(size_type), size);
 		return sizeof(size_type)+size;
