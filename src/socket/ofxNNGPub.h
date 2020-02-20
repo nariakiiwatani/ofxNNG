@@ -34,7 +34,10 @@ public:
 		return true;
 	}
 	bool send(const std::string &topic, Message msg) {
-		msg.prependData(topic.data(), topic.size());
+		return send(topic.data(), topic.size(), std::move(msg));
+	}
+	bool send(const void *topic_data, std::size_t topic_size, Message msg) {
+		msg.prependData(topic_data, topic_size);
 		return send(std::move(msg));
 	}
 };
