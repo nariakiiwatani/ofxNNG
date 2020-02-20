@@ -1,22 +1,20 @@
 #include "ofApp.h"
 
 using namespace ofxNNG;
-
+int k;
 //--------------------------------------------------------------
 void ofApp::setup(){
 	push_.setup();
 	push_.createListener("inproc://test")->start();
 	
 	pull_.setup();
-	pull_.setCallback<int>([](const int &buffer) {
-		ofLogNotice("pull") << buffer;
-	});
+	pull_.setCallback(k);
 	pull_.createDialer("inproc://test")->start();
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
-	
+	cout << k << endl;
 }
 
 //--------------------------------------------------------------

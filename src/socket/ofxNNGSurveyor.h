@@ -8,6 +8,7 @@
 #include "ASyncWork.h"
 #include "ofxNNGMessage.h"
 #include "ofxNNGNode.h"
+#include "detail/apply.h"
 
 namespace ofxNNG {
 class Surveyor : public Node
@@ -41,28 +42,18 @@ public:
 		work_.initialize(s.max_queue, &Surveyor::async, this);
 		return true;
 	}
-	template<typename T>
-	bool send(Message msg, std::function<void(T&&)> callback) {
-		aio::Work *work = nullptr;
-		nng_mtx_lock(work_mtx_);
-		work = work_.getUnused();
-		nng_mtx_unlock(work_mtx_);
-		if(!work) {
-			ofLogWarning("ofxNNGSurveyor") << "no unused work";
-			return false;
-		}
-		nng_ctx_open(&work->ctx, socket_);
-		nng_aio_set_msg(work->aio, msg);
-		nng_mtx_lock(callback_mtx_);
-		callback_[nng_ctx_id(work->ctx)] = [callback](Message msg) {
-			callback(msg.get<T>());
-		};
-		nng_mtx_unlock(callback_mtx_);
-		nng_aio_set_timeout(work->aio, timeout_);
-		work->state = aio::SEND;
-		nng_ctx_send(work->ctx, work->aio);
-		msg.setSentFlag();
-		return true;
+	template<typename ...Ref>
+	bool send(Message msg, Ref &...ref) {
+		return sendImpl(msg, [&ref...](Message msg) {
+			msg.to(ref...);
+		});
+	}
+	template<typename ...Args, typename F>
+	auto send(Message msg, F &&func)
+	-> decltype(func(declval<Args>()...), bool()) {
+		return sendImpl(msg, [func](Message msg) {
+			apply<Args...>(func, msg);
+		});
 	}
 private:
 	aio::WorkPool work_;
@@ -123,6 +114,26 @@ private:
 		nng_mtx_lock(callback_mtx_);
 		callback_[work.first](std::move(work.second));
 		nng_mtx_unlock(callback_mtx_);
+	}
+	bool sendImpl(Message msg, std::function<void(Message)> func) {
+		aio::Work *work = nullptr;
+		nng_mtx_lock(work_mtx_);
+		work = work_.getUnused();
+		nng_mtx_unlock(work_mtx_);
+		if(!work) {
+			ofLogWarning("ofxNNGSurveyor") << "no unused work";
+			return false;
+		}
+		nng_ctx_open(&work->ctx, socket_);
+		nng_aio_set_msg(work->aio, msg);
+		nng_mtx_lock(callback_mtx_);
+		callback_[nng_ctx_id(work->ctx)] = func;
+		nng_mtx_unlock(callback_mtx_);
+		nng_aio_set_timeout(work->aio, timeout_);
+		work->state = aio::SEND;
+		nng_ctx_send(work->ctx, work->aio);
+		msg.setSentFlag();
+		return true;
 	}
 };
 }

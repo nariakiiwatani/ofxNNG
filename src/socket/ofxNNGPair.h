@@ -9,6 +9,7 @@
 #include "ofxNNGMessage.h"
 #include "ofThreadChannel.h"
 #include "ofxNNGNode.h"
+#include "detail/apply.h"
 
 namespace ofxNNG {
 class Pair : public Node
@@ -43,16 +44,25 @@ public:
 		nng_recv_aio(socket_, aio_);
 		return true;
 	}
-	template<typename T>
-	void setCallback(const std::function<void(T&&)> &callback) {
-		callback_ = [callback](Message msg) {
-			callback(msg.get<T>());
+	template<typename ...Args, typename F>
+	auto setCallback(F &&func)
+	-> decltype(func(declval<Args>()...), void()) {
+		callback_ = [func](Message msg) {
+			apply<Args...>(func, msg);
 		};
 	}
-	template<typename T>
-	void setCallback(const std::function<void(T&&, nng_pipe)> &callback) {
-		callback_ = [callback](Message msg) {
-			callback(msg.get<T>(), nng_msg_get_pipe(msg));
+	template<typename ...Args, typename F>
+	auto setCallback(F &&func)
+	-> decltype(func(declval<Args>()..., declval<nng_pipe>()), void()) {
+		callback_ = [func](Message msg) {
+			msg.append(nng_msg_get_pipe(msg));
+			apply<Args..., nng_pipe>(func, msg);
+		};
+	}
+	template<typename ...Ref>
+	void setCallback(Ref &...ref) {
+		callback_ = [&ref...](Message msg) {
+			msg.to(ref...);
 		};
 	}
 	bool send(Message msg, bool blocking = false, nng_pipe pipe=NNG_PIPE_INITIALIZER) {

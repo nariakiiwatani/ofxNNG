@@ -1,5 +1,6 @@
 #include "ofApp.h"
 
+std::string node1, node2;
 //--------------------------------------------------------------
 void ofApp::setup(){
 	using std::string;
@@ -12,17 +13,15 @@ void ofApp::setup(){
 	
 	// connection diagram; node1 <--> node0 <--> node2
 	node0_.setup(pairs);
-	node0_.setCallback<string>([this](const string &str, nng_pipe pipe) {
+	node0_.setCallback<string,string>([this](const string &str1, const string &str2, nng_pipe pipe) {
 		cout << "node0: got a message from pipe:" << nng_pipe_id(pipe) << endl;
-		cout << str << endl;
+		cout << str1 << endl;
+		cout << str2 << endl;
 		// node0 is connected to both nodes but it can specify which to send by suggesting a pipe
-		node0_.send("this is a reply from node0", false, pipe);
+		node0_.send({"this is a reply" ," from node0"}, false, pipe);
 	});
 	node1_.setup(pairs);
-	node1_.setCallback<string>([](const string &str, nng_pipe pipe) {
-		cout << "node1: got a reply from pipe:" << nng_pipe_id(pipe) << endl;
-		cout << str << endl;
-	});
+	node1_.setCallback(node1, node2);
 	node2_.setup(pairs);
 	node2_.setCallback<string>([](const string &str, nng_pipe pipe) {
 		cout << "node2: got a reply from pipe:" << nng_pipe_id(pipe) << endl;
@@ -36,7 +35,7 @@ void ofApp::setup(){
 
 //--------------------------------------------------------------
 void ofApp::update(){
-
+	cout << node1 << node2 << endl;
 }
 
 //--------------------------------------------------------------
@@ -48,10 +47,10 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
 	switch(key) {
 		case OF_KEY_LEFT:
-			node1_.send("this is a message from node1");
+			node1_.send({"this is a message", " from node1"});
 			break;
 		case OF_KEY_RIGHT:
-			node2_.send("this is a message from node2");
+			node2_.send({"this is a message", " from node2"});
 			break;
 	}
 }

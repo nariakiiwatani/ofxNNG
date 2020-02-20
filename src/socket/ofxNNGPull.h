@@ -8,6 +8,7 @@
 #include "ofxNNGMessage.h"
 #include "ofxNNGNode.h"
 #include "ofThreadChannel.h"
+#include "detail/apply.h"
 
 namespace ofxNNG {
 class Pull : public Node
@@ -32,10 +33,17 @@ public:
 	~Pull() {
 		if(aio_) nng_aio_free(aio_);
 	}
-	template<typename T>
-	void setCallback(const std::function<void(T&&)> &callback) {
-		callback_ = [callback](Message msg) {
-			callback(msg.get<T>());
+	template<typename ...Args, typename F>
+	auto setCallback(F &&func)
+	-> decltype(func(declval<Args>()...), void()) {
+		callback_ = [func](Message msg) {
+			apply<Args...>(func, msg);
+		};
+	}
+	template<typename ...Ref>
+	void setCallback(Ref &...ref) {
+		callback_ = [&ref...](Message msg) {
+			msg.to(ref...);
 		};
 	}
 private:

@@ -8,6 +8,7 @@
 #include "ofxNNGMessage.h"
 #include "ofThreadChannel.h"
 #include "ofxNNGNode.h"
+#include "detail/apply.h"
 
 namespace ofxNNG {
 class Rep : public Node
@@ -34,15 +35,13 @@ public:
 		}
 		return true;
 	}
-	template<typename Request, typename Response>
-	void setCallback(const std::function<bool(const Request&, Response&)> &callback) {
-		callback_ = [callback](Message &msg) {
-			Response res;
-			if(!callback(msg.get<Request>(), res)) {
-				return false;
-			}
-			msg.set(res);
-			return true;
+	template<typename ...Args, typename F>
+	auto setCallback(F &&func)
+	-> decltype(func(declval<Args>()...), void()) {
+		callback_ = [func](Message &msg) {
+			bool result;
+			std::tie(result, msg) = apply<Args...>(func, msg);
+			return result;
 		};
 	}
 private:
@@ -58,6 +57,8 @@ private:
 				auto result = nng_aio_result(work->aio);
 				if(result != 0) {
 					ofLogError("ofxNNGRep") << "failed to receive message; " << nng_strerror(result);
+					work->state = aio::RECV;
+					nng_ctx_recv(work->ctx, work->aio);
 					return;
 				}
 				if(me->isEnabledAutoUpdate()) {
@@ -71,6 +72,8 @@ private:
 				auto result = nng_aio_result(work->aio);
 				if(result != 0) {
 					ofLogError("ofxNNGRep") << "failed to send message; " << nng_strerror(result);
+					work->state = aio::RECV;
+					nng_ctx_recv(work->ctx, work->aio);
 					break;
 				}
 				work->state = aio::RECV;
@@ -86,13 +89,16 @@ private:
 	}
 	void reply(aio::Work *work) {
 		Message msg(nng_aio_get_msg(work->aio));
-		if(!callback_(msg)) {
-			return;
+		if(callback_(msg)) {
+			nng_aio_set_msg(work->aio, msg);
+			work->state = aio::SEND;
+			nng_ctx_send(work->ctx, work->aio);
+			msg.setSentFlag();
 		}
-		nng_aio_set_msg(work->aio, msg);
-		work->state = aio::SEND;
-		nng_ctx_send(work->ctx, work->aio);
-		msg.setSentFlag();
+		else {
+			work->state = aio::RECV;
+			nng_ctx_recv(work->ctx, work->aio);
+		}
 	}
 };
 }

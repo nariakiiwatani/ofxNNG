@@ -8,9 +8,9 @@ void ofApp::setup(){
 	// the types of input and output args can be anything that can convert from/to ofxNNG::Message.
 	rep_.setup();
 	// callback that receives int as request and return std::string as response 
-	rep_.setCallback<int, std::string>([](const int &request, std::string &response) {
-		response = ofToString(request);
-		return true;
+	rep_.setCallback<int, std::string>([](int index, const std::string &message) {
+		//response = ofToString(request);
+		return std::make_pair(index==' ', ofToString(index)+" "+message);
 	});
 	// easiest way to start listener
 	rep_.createListener("tcp://127.0.0.1:9000")->start();
@@ -18,21 +18,7 @@ void ofApp::setup(){
 	Req::Settings reqs;
 	reqs.timeout_milliseconds = 1000;
 	req_.setup(reqs);
-	// you can have the dialer/listener pointer to do additional settings.
-	auto dialer = req_.createDialer("tcp://127.0.0.1:9000");
-	dialer->setEventCallback(NNG_PIPE_EV_ADD_PRE, [this]() {
-		ofLogNotice() << "this is pre-connection callback. you cannot send any message to the peer here.";
-	});
-	dialer->setEventCallback(NNG_PIPE_EV_ADD_POST, [this]() {
-		ofLogNotice() << "this is post-connection callback. now you can send anything.";
-		req_.send<std::string>("this is a connection message", [](const std::string &reply) {
-			ofLogNotice() << reply;
-		});
-	});
-	dialer->setEventCallback(NNG_PIPE_EV_REM_POST, [this]() {
-		ofLogNotice() << "this is post-removal callback. you can no longer send any message.";
-	});
-	dialer->start();
+	req_.createDialer("tcp://127.0.0.1:9000")->start();
 }
 
 //--------------------------------------------------------------
@@ -49,7 +35,7 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
 	// sending int and receiving string.
 	// the types can be anything that can be converted from/to ofxNNG::Message.
-	req_.send<std::string>(key, [](const std::string &response) {
+	req_.send<std::string>({key, "pressed"}, [](const std::string &response) {
 		ofLogNotice("got response") << response;
 	});
 }

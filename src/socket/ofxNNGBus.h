@@ -4,6 +4,7 @@
 #include "protocol/bus0/bus.h"
 #include "ofxNNGNode.h"
 #include "ofxNNGMessage.h"
+#include "detail/apply.h"
 
 namespace ofxNNG {
 class Bus : public Node
@@ -25,10 +26,17 @@ public:
 		nng_recv_aio(socket_, aio_);
 		return true;
 	}
-	template<typename T>
-	void setCallback(const std::function<void(T&&)> &callback) {
-		callback_ = [callback](Message msg) {
-			callback(msg.get<T>());
+	template<typename ...Args, typename F>
+	auto setCallback(F &&func)
+	-> decltype(func(declval<Args>()...), void()) {
+		callback_ = [func](Message msg) {
+			apply<Args...>(func, msg);
+		};
+	}
+	template<typename ...Ref>
+	void setCallback(Ref &...ref) {
+		callback_ = [&ref...](Message msg) {
+			msg.to(ref...);
 		};
 	}
 	bool send(Message msg, bool blocking=false) {

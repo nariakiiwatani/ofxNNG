@@ -34,15 +34,13 @@ public:
 		}
 		return true;
 	}
-	template<typename Request, typename Response>
-	void setCallback(const std::function<bool(const Request&, Response&)> &callback) {
-		callback_ = [callback](Message &msg) {
-			Response res;
-			if(!callback(msg.get<Request>(), res)) {
-				return false;
-			}
-			msg.set(res);
-			return true;
+	template<typename ...Args, typename F>
+	auto setCallback(F &&func)
+	-> decltype(func(declval<Args>()...), void()) {
+		callback_ = [func](Message &msg) {
+			bool result;
+			std::tie(result, msg) = apply<Args...>(func, msg);
+			return result;
 		};
 	}
 private:

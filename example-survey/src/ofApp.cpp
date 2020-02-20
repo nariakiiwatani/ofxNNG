@@ -19,9 +19,8 @@ void ofApp::setup(){
 	for(auto &&n : names) {
 		auto r = std::make_shared<ofxNNG::Respondent>();
 		r->setup();
-		r->setCallback<char, string>([n](const char &request, string& response) {
-			response = n + " is here!";
-			return n[0] == request;
+		r->setCallback<char, string>([n](char ch, const string &message) {
+			return std::make_pair(ch==n[0], n + " is here!");
 		});
 		r->createDialer("inproc://test")->start();
 		respond_.emplace_back(r);
@@ -42,7 +41,7 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
 	char ch = key;
 	ofLogNotice("survey") << "is there anyone who's name starts with:" << ch;
-	survey_.send<string>(ch, [](const string &response) {
+	survey_.send<string>({ch, "pressed"}, [](const string &response) {
 		ofLogNotice("renponse") << response;
 	});
 }

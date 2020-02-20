@@ -1,6 +1,8 @@
 #include "ofApp.h"
 
 using namespace ofxNNG;
+std::string message;
+int inl;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -10,9 +12,14 @@ void ofApp::setup(){
 		auto &b = bus_[i];
 		b = std::make_shared<Bus>();
 		b->setup();
-		b->setCallback<std::string>([i](const std::string &message) {
-			ofLogNotice("bus "+ofToString(i)+" receive") << message;
+		b->setCallback<std::string, int>([i](const std::string& str, int index) {
+			ofLogNotice("node "+ofToString(i)+" receive from "+ofToString(index)) << str;
 		});
+		b->setCallback<std::string>([i](const std::string& str) {
+			ofLogNotice("node "+ofToString(i)+" receive from ") << str;
+		});
+		b->setCallback(message, inl);
+		b->setCallback(message);
 		std::string recv_url = "inproc://bus"+ofToString(i);
 		b->createListener(recv_url)->start();
 		for(int j = i+1; j < bus_.size(); ++j) {
@@ -24,7 +31,7 @@ void ofApp::setup(){
 
 //--------------------------------------------------------------
 void ofApp::update(){
-
+	cout << message << "," << inl << endl;
 }
 
 //--------------------------------------------------------------
@@ -36,9 +43,8 @@ void ofApp::draw(){
 void ofApp::keyPressed(int key){
 	int index = key-'1';
 	if(index >= 0 && index < bus_.size()) {
-		std::string message = "message from node"+ofToString(index);
-		bus_[key-'1']->send(message);
-		ofLogNotice("bus "+ofToString(index)+" send") << message;
+		bus_[key-'1']->send({"message from node ", index});
+		ofLogNotice("from node "+ofToString(index)+" send");
 	}
 }
 
