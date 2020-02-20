@@ -66,6 +66,13 @@ public:
 		return true;
 	}
 private:
+	template<typename T>
+	auto subscribe(const void *topic_data, std::size_t topic_size, T &reference, bool trim_topic)
+	-> decltype(reference=declval<T>(), bool()) {
+		return subscribe<T>(topic_data, topic_size, [&reference](const ofBuffer &topic, T &&msg) {
+			reference = std::forward<T>(msg);
+		}, trim_topic);
+	}
 	template<typename T, typename F>
 	auto subscribe(const void *topic_data, std::size_t topic_size, F &&callback, bool trim_topic)
 	-> decltype(callback(declval<T>()), bool()) {
