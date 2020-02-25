@@ -77,13 +77,18 @@ void ofApp::setup(){
 	needs.color = ofColor::white;
 	socket.send(needs);
 	
-	// to receive message with a socket, use callback functions.
-	// when you receive, you can expect any type.
+	// to receive message with a socket, there are 2 options.
+	// 1. callback functions
 	socket.setCallback<int>([](int){});
 	socket.setCallback<std::string>([](const std::string&){});
 	socket.setCallback<Memcopyable>([](const Memcopyable&){});
-	// but be careful.
-	// receiving messages using different type will cause some unexpected behaviors.
+	// 2. reference
+	int intval;
+	std::string strval;
+	NeedConversion ncval;
+	socket.setCallback(intval, strval, ncval);
+	// you can receive values by any type.
+	// but be careful; receiving messages using different type will cause unexpected behaviors.
 }
 
 //--------------------------------------------------------------

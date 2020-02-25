@@ -36,7 +36,7 @@ namespace basic_converter {
 		Message copy;
 		copy.appendData((const char*)msg.data()+offset, size);
 		switch(size) {
-			case 1: t = *reinterpret_cast<T*>(nng_msg_body(copy)); nng_msg_trim(copy, size); break;
+			case 1: t = *reinterpret_cast<uint8_t*>(nng_msg_body(copy)); nng_msg_trim(copy, size); break;
 			case 2: nng_msg_trim_u16(copy, (uint16_t*)&t); break;
 			case 4: nng_msg_trim_u32(copy, (uint32_t*)&t); break;
 			case 8: nng_msg_trim_u64(copy, (uint64_t*)&t); break;

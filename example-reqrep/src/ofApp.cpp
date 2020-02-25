@@ -3,16 +3,12 @@
 using namespace ofxNNG;
 //--------------------------------------------------------------
 void ofApp::setup(){
-	// setup with a bool function for replying.
-	// if it returns true the output arg will be sent to the peer else nothing will be sent.
-	// the types of input and output args can be anything that can convert from/to ofxNNG::Message.
 	rep_.setup();
-	// callback that receives int as request and return std::string as response 
+	// setup with a callback function that returns std::pair<bool, anything>.
+	// if the first bool was true, the second arg will be sent to the peer. else nothing is sent.
 	rep_.setCallback<int, std::string>([](int index, const std::string &message) {
-		//response = ofToString(request);
 		return std::make_pair(index==' ', ofToString(index)+" "+message);
 	});
-	// easiest way to start listener
 	rep_.createListener("tcp://127.0.0.1:9000")->start();
 
 	Req::Settings reqs;
@@ -33,8 +29,6 @@ void ofApp::draw(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-	// sending int and receiving string.
-	// the types can be anything that can be converted from/to ofxNNG::Message.
 	req_.send<std::string>({key, "pressed"}, [](const std::string &response) {
 		ofLogNotice("got response") << response;
 	});

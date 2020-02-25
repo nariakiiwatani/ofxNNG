@@ -3,13 +3,7 @@
 
 using namespace ofxNNG;
 
-glm::vec2 position;
-glm::vec2 position2;
-float x,y;
-
-namespace ofxNNG {
-	OFX_NNG_ADL_CONVERTER(glm::vec2,x,y);
-}
+int x,y;
 
 //--------------------------------------------------------------
 void ofApp::setup(){
@@ -36,15 +30,13 @@ void ofApp::setup(){
 		s->subscribe<Message>({soi,2}, [](const Message &msg) {
 			ofLogNotice("soi") << "jpg data";
 		});
-		
+		// also you can receive by references
 		s->subscribe("position", x,y);
 		
-		// you can subscribe all message by subscribing without topic or with empty topic.
-		// but in case a publisher sends a message with non-empty topic, 
-		// subscriber can't know how long is the topic the sender expected. 
+		// you can subscribe all message by subscribing with empty topic.
+		// but subscriber can't know how long is the topic the sender expected. 
 		// so if you want to separate them you need some external rules.
-		//	s->subscribe<ofxNNG::Message>([](const ofxNNG::Message &message) {
-		//	});
+//		s->subscribe("", something);
 		
 		s->createDialer("inproc://test")->start();
 	}
@@ -62,14 +54,12 @@ void ofApp::setup(){
 
 //--------------------------------------------------------------
 void ofApp::update(){
-	pub_.send("position", glm::vec2{ofGetMouseX(),ofGetMouseY()});
+	pub_.send("position", {ofGetMouseX(),ofGetMouseY()});
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
 	ofDrawCircle(x,y, 5);
-	ofDrawCircle(position, 5);
-	ofDrawCircle(position2, 5);
 }
 
 //--------------------------------------------------------------
