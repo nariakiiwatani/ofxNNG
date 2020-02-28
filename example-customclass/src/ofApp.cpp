@@ -80,7 +80,7 @@ void ofApp::setup(){
 	// to receive message with a socket, there are 2 options.
 	// 1. callback functions
 	socket.setCallback<int>([](int){});
-	socket.setCallback<std::string>([](const std::string&){});
+	socket.setCallback<std::string, int>([](const std::string&, const int&){});
 	socket.setCallback<Memcopyable>([](const Memcopyable&){});
 	// 2. reference
 	int intval;

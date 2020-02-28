@@ -63,8 +63,21 @@ But ofxNNG generously does the conversion(`ofxNNG::Message -> UserType`) for you
 So all you need to do is;
 
 ```
-socket.setCallback<UserType>([](const UserType &msg) {
-});
+socket.setCallback<UserType>([](const UserType &msg) {});
+// receiving by multiple arguments is also valid
+socket.setCallback<std::string, glm::vec3>([](const std::string &name, const glm::vec3 &pos) {});
+```
+
+Also you can receive by reference;
+
+```
+// all valid
+UserType type;
+socket.setCallback(type);
+socket.setCallback(type.name, type.pos);
+int intval;
+std::string strval;
+socket.setCallback(type, intval, strval);
 ```
 
 If you want to use what is not memcpy-able or you don't want to do so, you have 2 options to implement your own.  
