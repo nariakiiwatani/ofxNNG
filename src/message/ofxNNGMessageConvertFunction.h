@@ -27,7 +27,12 @@ namespace basic_converter {
 	}
 
 #pragma mark - arithmetic
-	template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+	template<typename T>
+	struct arithmetic {
+		using plain_type = typename std::remove_reference<T>::type;
+		static constexpr bool value = std::is_arithmetic<plain_type>::value;
+	};
+	template<typename T, typename std::enable_if<arithmetic<T>::value>::type* = nullptr>
 	static inline size_type from_msg(T &t, const Message &msg, size_type offset) {
 		size_type size = sizeof(T);
 		Message copy;
@@ -40,7 +45,7 @@ namespace basic_converter {
 		}
 		return size;
 	}
-	template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+	template<typename T, typename std::enable_if<arithmetic<T>::value>::type* = nullptr>
 	static inline void append_to_msg(Message &msg, T &&t) {
 		size_type size = sizeof(T);
 		switch(size) {
@@ -60,7 +65,7 @@ namespace basic_converter {
 		};
 		template<typename T>
 		struct should_memcpy {
-			static constexpr bool value = trivially_copyable<T>::value && !std::is_arithmetic<T>::value;
+			static constexpr bool value = trivially_copyable<T>::value && !arithmetic<T>::value;
 		};
 	}
 	template<typename T, typename std::enable_if<should_memcpy<T>::value>::type* = nullptr>
