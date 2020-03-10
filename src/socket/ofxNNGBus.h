@@ -34,9 +34,9 @@ public:
 		};
 	}
 	template<typename ...Ref>
-	void setCallback(Ref &...ref) {
-		callback_ = [&ref...](Message msg) {
-			msg.to(ref...);
+	void setCallback(Ref &...refs) {
+		callback_ = [&refs...](Message msg) {
+			msg.to(refs...);
 		};
 	}
 	bool send(Message msg, bool blocking=false) {

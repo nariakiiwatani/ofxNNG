@@ -43,9 +43,9 @@ public:
 		return true;
 	}
 	template<typename ...Ref>
-	bool send(Message msg, Ref &...ref) {
-		return sendImpl(msg, [&ref...](Message msg) {
-			msg.to(ref...);
+	bool send(Message msg, Ref &...refs) {
+		return sendImpl(msg, [&refs...](Message msg) {
+			msg.to(refs...);
 		});
 	}
 	template<typename ...Args, typename F>
