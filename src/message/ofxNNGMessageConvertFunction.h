@@ -27,11 +27,8 @@ namespace basic_converter {
 	}
 
 #pragma mark - arithmetic
-	template<typename T, typename Type=void>
-	using enable_if_arithmetic_t = typename std::enable_if<std::is_arithmetic<typename std::remove_reference<T>::type>::value, Type>::type;
-	template<typename T>
-	static inline auto from_msg(T &t, const Message &msg, size_type offset)
-	-> enable_if_arithmetic_t<T, size_type> {
+	template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+	static inline size_type from_msg(T &t, const Message &msg, size_type offset) {
 		size_type size = sizeof(T);
 		Message copy;
 		copy.appendData((const char*)msg.data()+offset, size);
@@ -43,9 +40,8 @@ namespace basic_converter {
 		}
 		return size;
 	}
-	template<typename T>
-	static inline auto append_to_msg(Message &msg, T &&t)
-	-> enable_if_arithmetic_t<T, void> {
+	template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+	static inline void append_to_msg(Message &msg, T &&t) {
 		size_type size = sizeof(T);
 		switch(size) {
 			case 1: nng_msg_append(msg, &t, size); break;
@@ -56,14 +52,19 @@ namespace basic_converter {
 	}
 	
 #pragma mark - trivially_copyable
-	template<typename T, typename Type=void>
-	using enable_if_should_memcpy_t = typename std::enable_if<
-		std::is_trivially_copyable<typename std::remove_reference<T>::type>::value &&
-		!std::is_arithmetic<typename std::remove_reference<T>::type>::value
-		, Type>::type;
-	template<typename T>
-	static inline auto from_msg(T &t, const Message &msg, size_type offset)
-	-> enable_if_should_memcpy_t<T, size_type> {
+	namespace {
+		template<typename T>
+		struct trivially_copyable {
+			using plain_type = typename std::remove_reference<T>::type;
+			static constexpr bool value = std::is_trivially_copyable<plain_type>::value;
+		};
+		template<typename T>
+		struct should_memcpy {
+			static constexpr bool value = trivially_copyable<T>::value && !std::is_arithmetic<T>::value;
+		};
+	}
+	template<typename T, typename std::enable_if<should_memcpy<T>::value>::type* = nullptr>
+	static inline size_type from_msg(T &t, const Message &msg, size_type offset) {
 		auto pos = offset;
 		size_type size = sizeof(T);
 		pos += sizeof(size_type);
@@ -71,9 +72,8 @@ namespace basic_converter {
 		memcpy(&t, data+pos, size);
 		return pos+size-offset;
 	}
-	template<typename T>
-	static inline auto append_to_msg(Message &msg, T &&t)
-	-> enable_if_should_memcpy_t<T, void> {
+	template<typename T, typename std::enable_if<should_memcpy<T>::value>::type* = nullptr>
+	static inline void append_to_msg(Message &msg, T &&t) {
 		msg.append(sizeof(T));
 		msg.appendData(&t, sizeof(T));
 	}
