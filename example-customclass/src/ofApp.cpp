@@ -6,6 +6,8 @@
 struct Memcopyable {
 	int index;
 	glm::vec3 pos;
+	// for visualstudio, not sure but glm::vec3 seems to be not-trivially-copyable
+	OFX_NNG_MEMBER_CONVERTER(index,pos);
 };
 
 // in case there is any non-memcopyable member(ex; std::string).
@@ -21,6 +23,7 @@ struct NeedConversion {
 // you can do it.
 namespace ofxNNG {
 	OFX_NNG_ADL_CONVERTER(ofColor, r,g,b);
+	OFX_NNG_ADL_CONVERTER(glm::vec3, x,y,z);
 }
 
 //--------------------------------------------------------------
