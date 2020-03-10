@@ -50,9 +50,9 @@ namespace basic_converter {
 		size_type size = sizeof(T);
 		switch(size) {
 			case 1: nng_msg_append(msg, &t, size); break;
-			case 2: nng_msg_append_u16(msg, *reinterpret_cast<uint16_t*>(&t)); break;
-			case 4: nng_msg_append_u32(msg, *reinterpret_cast<uint32_t*>(&t)); break;
-			case 8: nng_msg_append_u64(msg, *reinterpret_cast<uint64_t*>(&t)); break;
+			case 2: nng_msg_append_u16(msg, *reinterpret_cast<const uint16_t*>(&t)); break;
+			case 4: nng_msg_append_u32(msg, *reinterpret_cast<const uint32_t*>(&t)); break;
+			case 8: nng_msg_append_u64(msg, *reinterpret_cast<const uint64_t*>(&t)); break;
 		}
 	}
 	
