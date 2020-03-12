@@ -317,6 +317,19 @@ namespace basic_converter {
 	static inline void append_to_msg(Message &msg, const ofJson &t) {
 		append_to_msg(msg, t.dump());
 	}
+	static inline size_type from_msg(ofNode &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		glm::vec3 position, scale;
+		glm::quat orientation;
+		pos += msg.to(position, position, scale, orientation);
+		t.setPosition(position);
+		t.setScale(scale);
+		t.setOrientation(orientation);
+		return pos-offset;
+	}
+	static inline void append_to_msg(Message &msg, const ofNode &t) {
+		msg.append(t.getPosition(), t.getScale(), t.getOrientationQuat());
+	}
 }
 }
 
