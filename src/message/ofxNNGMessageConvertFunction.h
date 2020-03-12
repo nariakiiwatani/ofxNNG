@@ -358,6 +358,86 @@ namespace basic_converter {
 				   t.getAspectRatio(),
 				   t.isVFlipped());
 	}
+	template<class V, class N, class C, class T>
+	static inline size_type from_msg(ofMesh_<V,N,C,T> &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		ofPrimitiveMode mode;
+		bool use_colors, use_texcoords, use_normals, use_indices;
+		pos += msg.to(pos,
+					  mode,
+					  t.getVertices(),
+					  use_colors,
+					  t.getColors(),
+					  use_texcoords,
+					  t.getTexCoords(),
+					  use_normals,
+					  t.getNormals(),
+					  use_indices,
+					  t.getIndices());
+		t.setMode(mode);
+		use_colors ? t.enableColors() : t.disableColors();
+		use_texcoords ? t.enableTextures() : t.disableTextures();
+		use_normals ? t.enableNormals() : t.disableNormals();
+		use_indices ? t.enableIndices() : t.disableIndices();
+		return pos-offset;
+	}
+	template<class V, class N, class C, class T>
+	static inline void append_to_msg(Message &msg, const ofMesh_<V,N,C,T> &t) {
+		msg.append(t.getMode(),
+				   t.getVertices(),
+				   t.usingColors(),
+				   t.getColors(),
+				   t.usingTextures(),
+				   t.getTexCoords(),
+				   t.usingNormals(),
+				   t.getNormals(),
+				   t.usingIndices(),
+				   t.getIndices());
+	}
+	template<class V, class N, class C, class T>
+	static inline size_type from_msg(ofMeshFace_<V,N,C,T> &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		std::vector<V> vertices;
+		std::vector<C> colors;
+		std::vector<N> normals;
+		std::vector<T> texcoords;
+		pos += msg.to(vertices, colors, normals, texcoords);
+		t.setHasColors(false);
+		t.setHasNormals(false);
+		t.setHasTexCoords(false);
+		for(ofIndexType i = 0; i < vertices.size(); ++i) { t.setVertex(i, vertices[i]); }
+		for(ofIndexType i = 0; i < colors.size(); ++i) { t.setColor(i, colors[i]); }
+		for(ofIndexType i = 0; i < normals.size(); ++i) { t.setNormal(i, normals[i]); }
+		for(ofIndexType i = 0; i < texcoords.size(); ++i) { t.setTexCoord(i, texcoords[i]); }
+		return pos-offset;
+	}
+	template<class V, class N, class C, class T>
+	static inline void append_to_msg(Message &msg, const ofMeshFace_<V,N,C,T> &t) {
+		static const ofIndexType NUM = 3;
+		msg.append(3);
+		for(ofIndexType i = 0; i < NUM; ++i) { msg.append(t.getVertex(i)); }
+		if(t.hasColors()) {
+			msg.append(3);
+			for(ofIndexType i = 0; i < NUM; ++i) { msg.append(t.getColor(i)); }
+		}
+		else {
+			msg.append(0);
+		}
+		if(t.hasNormals()) {
+			msg.append(3);
+			for(ofIndexType i = 0; i < NUM; ++i) { msg.append(t.getNormal(i)); }
+		}
+		else {
+			msg.append(0);
+		}
+		if(t.hasTexCoords()) {
+			msg.append(3);
+			for(ofIndexType i = 0; i < NUM; ++i) { msg.append(t.getTexCoord(i)); }
+		}
+		else {
+			msg.append(0);
+		}
+	}
 }
 }
 
