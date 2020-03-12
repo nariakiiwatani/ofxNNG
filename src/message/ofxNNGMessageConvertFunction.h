@@ -286,6 +286,12 @@ namespace basic_converter {
 	static inline void append_to_msg(Message &msg, const ofQuaternion &t) {
 		indexed::append_to_msg(msg,t,4);
 	}
+	static inline size_type from_msg(ofRectangle &t, const Message &msg, size_type offset) {
+		return msg.to(offset, t.x, t.y, t.width, t.height);
+	}
+	static inline void append_to_msg(Message &msg, const ofRectangle &t) {
+		msg.append(t.x, t.y, t.width, t.height);
+	}
 	template<typename PixelType>
 	static inline size_type from_msg(ofColor_<PixelType> &t, const Message &msg, size_type offset) {
 		return indexed::from_msg(t,msg,offset,4);
