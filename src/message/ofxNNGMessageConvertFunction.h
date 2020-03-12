@@ -233,7 +233,49 @@ namespace basic_converter {
 	static inline void append_to_msg(Message &msg, const std::array<T,N> &t) {
 		msg_append(msg, t);
 	}
-
+#pragma mark - glm
+	template<glm::length_t L, typename T, glm::qualifier Q>
+	inline size_type from_msg(glm::vec<L,T,Q> &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		for(auto i = 0; i < L; ++i) {
+			pos += msg.to(pos, t[i]);
+		}
+		return pos - offset;
+	}
+	template<glm::length_t L, typename T, glm::qualifier Q>
+	static inline void append_to_msg(Message &msg, const glm::vec<L,T,Q> &t) {
+		for(auto i = 0; i < L; ++i) {
+			msg.append(t[i]);
+		}
+	}
+	template<glm::length_t C, glm::length_t R, typename T, glm::qualifier Q>
+	inline size_type from_msg(glm::mat<C,R,T,Q> &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		for(auto i = 0; i < C; ++i) {
+			pos += msg.to(pos, t[i]);
+		}
+		return pos - offset;
+	}
+	template<glm::length_t C, glm::length_t R, typename T, glm::qualifier Q>
+	static inline void append_to_msg(Message &msg, const glm::mat<C,R,T,Q> &t) {
+		for(auto i = 0; i < C; ++i) {
+			msg.append(t[i]);
+		}
+	}
+	template<typename T, glm::qualifier Q>
+	inline size_type from_msg(glm::qua<T,Q> &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		for(auto i = 0; i < t.length(); ++i) {
+			pos += msg.to(pos, t[i]);
+		}
+		return pos - offset;
+	}
+	template<typename T, glm::qualifier Q>
+	static inline void append_to_msg(Message &msg, const glm::qua<T,Q> &t) {
+		for(auto i = 0; i < t.length(); ++i) {
+			msg.append(t[i]);
+		}
+	}
 }
 }
 
