@@ -199,17 +199,17 @@ namespace basic_converter {
 	}
 #pragma mark - index access
 	namespace indexed {
-		template<std::size_t L, typename T>
-		static inline size_type from_msg(T &t, const Message &msg, size_type offset) {
+		template<typename T>
+		static inline size_type from_msg(T &t, const Message &msg, size_type offset, std::size_t length) {
 			auto pos = offset;
-			for(auto i = 0; i < L; ++i) {
+			for(auto i = 0; i < length; ++i) {
 				pos += msg.to(pos, t[i]);
 			}
 			return pos - offset;
 		}
-		template<std::size_t L, typename T>
-		static inline void append_to_msg(Message &msg, const T &t) {
-			for(auto i = 0; i < L; ++i) {
+		template<typename T>
+		static inline void append_to_msg(Message &msg, const T &t, std::size_t length) {
+			for(auto i = 0; i < length; ++i) {
 				msg.append(t[i]);
 			}
 		}
@@ -218,55 +218,55 @@ namespace basic_converter {
 #pragma mark - array
 	template<typename T, size_type L>
 	static inline size_type from_msg(std::array<T,L> &t, const Message &msg, size_type offset) {
-		return indexed::from_msg<L>(t,msg,offset);
+		return indexed::from_msg(t,msg,offset,L);
 	}
 	template<typename T, size_type L>
 	static inline void append_to_msg(Message &msg, const std::array<T,L> &t) {
-		indexed::append_to_msg<L>(msg,t);
+		indexed::append_to_msg(msg,t,L);
 	}
 #pragma mark - glm
 	template<glm::length_t L, typename T, glm::qualifier Q>
 	static inline size_type from_msg(glm::vec<L,T,Q> &t, const Message &msg, size_type offset) {
-		return indexed::from_msg<L>(t,msg,offset);
+		return indexed::from_msg(t,msg,offset,L);
 	}
 	template<glm::length_t L, typename T, glm::qualifier Q>
 	static inline void append_to_msg(Message &msg, const glm::vec<L,T,Q> &t) {
-		indexed::append_to_msg<L>(msg,t);
+		indexed::append_to_msg(msg,t,L);
 	}
 	template<glm::length_t C, glm::length_t R, typename T, glm::qualifier Q>
 	static inline size_type from_msg(glm::mat<C,R,T,Q> &t, const Message &msg, size_type offset) {
-		return indexed::from_msg<C>(t,msg,offset);
+		return indexed::from_msg(t,msg,offset,C);
 	}
 	template<glm::length_t C, glm::length_t R, typename T, glm::qualifier Q>
 	static inline void append_to_msg(Message &msg, const glm::mat<C,R,T,Q> &t) {
-		indexed::append_to_msg<C>(msg,t);
+		indexed::append_to_msg(msg,t,C);
 	}
 	template<typename T, glm::qualifier Q>
 	static inline size_type from_msg(glm::qua<T,Q> &t, const Message &msg, size_type offset) {
-		return indexed::from_msg<4>(t,msg,offset);
+		return indexed::from_msg(t,msg,offset,t.length());
 	}
 	template<typename T, glm::qualifier Q>
 	static inline void append_to_msg(Message &msg, const glm::qua<T,Q> &t) {
-		indexed::append_to_msg<4>(msg,t);
+		indexed::append_to_msg(msg,t,t.length());
 	}
 #pragma mark - of types
 	static inline size_type from_msg(ofVec2f &t, const Message &msg, size_type offset) {
-		return indexed::from_msg<ofVec2f::DIM>(t,msg,offset);
+		return indexed::from_msg(t,msg,offset,ofVec2f::DIM);
 	}
 	static inline void append_to_msg(Message &msg, const ofVec2f &t) {
-		indexed::append_to_msg<ofVec2f::DIM>(msg,t);
+		indexed::append_to_msg(msg,t,ofVec2f::DIM);
 	}
 	static inline size_type from_msg(ofVec3f &t, const Message &msg, size_type offset) {
-		return indexed::from_msg<ofVec3f::DIM>(t,msg,offset);
+		return indexed::from_msg(t,msg,offset,ofVec3f::DIM);
 	}
 	static inline void append_to_msg(Message &msg, const ofVec3f &t) {
-		indexed::append_to_msg<ofVec3f::DIM>(msg,t);
+		indexed::append_to_msg(msg,t,ofVec3f::DIM);
 	}
 	static inline size_type from_msg(ofVec4f &t, const Message &msg, size_type offset) {
-		return indexed::from_msg<ofVec4f::DIM>(t,msg,offset);
+		return indexed::from_msg(t,msg,offset,ofVec4f::DIM);
 	}
 	static inline void append_to_msg(Message &msg, const ofVec4f &t) {
-		indexed::append_to_msg<ofVec4f::DIM>(msg,t);
+		indexed::append_to_msg(msg,t,ofVec4f::DIM);
 	}
 	static inline size_type from_msg(ofMatrix3x3 &t, const Message &msg, size_type offset) {
 		return msg.to(offset, t.a,t.b,t.c,t.d,t.e,t.f,t.g,t.h,t.i);
@@ -275,24 +275,24 @@ namespace basic_converter {
 		msg.append(t.a,t.b,t.c,t.d,t.e,t.f,t.g,t.h,t.i);
 	}
 	static inline size_type from_msg(ofMatrix4x4 &t, const Message &msg, size_type offset) {
-		return indexed::from_msg<4>(t._mat,msg,offset);
+		return indexed::from_msg(t._mat,msg,offset,4);
 	}
 	static inline void append_to_msg(Message &msg, const ofMatrix4x4 &t) {
-		indexed::append_to_msg<4>(msg,t._mat);
+		indexed::append_to_msg(msg,t._mat,4);
 	}
 	static inline size_type from_msg(ofQuaternion &t, const Message &msg, size_type offset) {
-		return indexed::from_msg<4>(t,msg,offset);
+		return indexed::from_msg(t,msg,offset,4);
 	}
 	static inline void append_to_msg(Message &msg, const ofQuaternion &t) {
-		indexed::append_to_msg<4>(msg,t);
+		indexed::append_to_msg(msg,t,4);
 	}
 	template<typename PixelType>
 	static inline size_type from_msg(ofColor_<PixelType> &t, const Message &msg, size_type offset) {
-		return indexed::from_msg<4>(t,msg,offset);
+		return indexed::from_msg(t,msg,offset,4);
 	}
 	template<typename PixelType>
 	static inline void append_to_msg(Message &msg, const ofColor_<PixelType> &t) {
-		indexed::append_to_msg<4>(msg,t);
+		indexed::append_to_msg(msg,t,4);
 	}
 	static inline size_type from_msg(ofBuffer &t, const Message &msg, size_type offset) {
 		auto pos = offset;
