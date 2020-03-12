@@ -438,6 +438,22 @@ namespace basic_converter {
 			msg.append(0);
 		}
 	}
+	template <typename PixelType>
+	static inline size_type from_msg(ofPixels_<PixelType> &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		ofPixelFormat format;
+		std::size_t width, height;
+		pos += msg.to(pos, format, width, height);
+		t.allocate(width, height, format);
+		auto *data = t.getData();
+		pos += indexed::from_msg(data, msg, pos, t.size());
+		return pos-offset;
+	}
+	template <typename PixelType>
+	static inline void append_to_msg(Message &msg, const ofPixels_<PixelType> &t) {
+		msg.append(t.getPixelFormat(), t.getWidth(), t.getHeight());
+		indexed::append_to_msg(msg, t.getData(), t.size());
+	}
 }
 }
 
