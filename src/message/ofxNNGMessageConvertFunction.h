@@ -404,7 +404,7 @@ namespace basic_converter {
 		pos += msg.to(vertices, colors, normals, texcoords);
 		t.setHasColors(false);
 		t.setHasNormals(false);
-		t.setHasTexCoords(false);
+		t.setHasTexcoords(false);
 		for(ofIndexType i = 0; i < vertices.size(); ++i) { t.setVertex(i, vertices[i]); }
 		for(ofIndexType i = 0; i < colors.size(); ++i) { t.setColor(i, colors[i]); }
 		for(ofIndexType i = 0; i < normals.size(); ++i) { t.setNormal(i, normals[i]); }
@@ -430,7 +430,7 @@ namespace basic_converter {
 		else {
 			msg.append(0);
 		}
-		if(t.hasTexCoords()) {
+		if(t.hasTexcoords()) {
 			msg.append(3);
 			for(ofIndexType i = 0; i < NUM; ++i) { msg.append(t.getTexCoord(i)); }
 		}
