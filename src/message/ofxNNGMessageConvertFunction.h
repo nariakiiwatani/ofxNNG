@@ -82,19 +82,6 @@ namespace basic_converter {
 		msg.append(sizeof(T));
 		msg.appendData(&t, sizeof(T));
 	}
-#pragma mark - ofBuffer
-	static inline size_type from_msg(ofBuffer &t, const Message &msg, size_type offset) {
-		auto pos = offset;
-		size_type size;
-		pos += msg.to(pos, size);
-		auto data = (const char*)msg.data();
-		t.set(data+pos, size);
-		return pos+size-offset;
-	}
-	static inline void append_to_msg(Message &msg, const ofBuffer &t) {
-		msg.append(t.size());
-		msg.appendData(t.getData(), t.size());
-	}
 #pragma mark - container
 	namespace {
 		template<typename T, typename = void>
@@ -160,18 +147,6 @@ namespace basic_converter {
 		msg.append(t.size());
 		msg.appendData(t.data(), t.size());
 	}
-#pragma mark - ofJson
-	static inline size_type from_msg(ofJson &t, const Message &msg, size_type offset) {
-		auto pos = offset;
-		size_type size;
-		pos += msg.to(pos, size);
-		auto data = (const char*)msg.data();
-		t = ofJson::parse(data+pos, data+pos+size);
-		return pos+size-offset;
-	}
-	static inline void append_to_msg(Message &msg, const ofJson &t) {
-		append_to_msg(msg, t.dump());
-	}
 #pragma mark - pair
 	template<typename T, typename U>
 	static inline size_type from_msg(std::pair<T,U> &t, const Message &msg, size_type offset) {
@@ -190,7 +165,7 @@ namespace basic_converter {
 				   );
 	}
 #pragma mark - tuple
-	namespace {
+	namespace tuple {
 		template<typename T, std::size_t ...I>
 		auto msg_to_fun(size_type offset, const Message &msg, T &t, nlohmann::detail::index_sequence<I...>)
 		-> decltype(msg.to(offset,const_cast<typename std::remove_cv<decltype(std::get<I>(t))>::type>(std::get<I>(t))...)) {
@@ -213,68 +188,134 @@ namespace basic_converter {
 		}
 	}
 	template<typename ...T>
-	inline size_type from_msg(std::tuple<T...> &t, const Message &msg, size_type offset) {
+	static inline size_type from_msg(std::tuple<T...> &t, const Message &msg, size_type offset) {
 		auto pos = offset;
-		pos += msg_to(pos, msg, t);
+		pos += tuple::msg_to(pos, msg, t);
 		return pos-offset;
 	}
 	template<typename ...T>
-	inline void append_to_msg(Message &msg, const std::tuple<T...> &t) {
-		msg_append(msg, t);
+	static inline void append_to_msg(Message &msg, const std::tuple<T...> &t) {
+		tuple::msg_append(msg, t);
 	}
+#pragma mark - index access
+	namespace indexed {
+		template<std::size_t L, typename T>
+		static inline size_type from_msg(T &t, const Message &msg, size_type offset) {
+			auto pos = offset;
+			for(auto i = 0; i < L; ++i) {
+				pos += msg.to(pos, t[i]);
+			}
+			return pos - offset;
+		}
+		template<std::size_t L, typename T>
+		static inline void append_to_msg(Message &msg, const T &t) {
+			for(auto i = 0; i < L; ++i) {
+				msg.append(t[i]);
+			}
+		}
+	}
+	
 #pragma mark - array
-	template<typename T, size_type N>
-	inline size_type from_msg(std::array<T,N> &t, const Message &msg, size_type offset) {
-		auto pos = offset;
-		pos += msg_to(pos, msg, t);
-		return pos-offset;
+	template<typename T, size_type L>
+	static inline size_type from_msg(std::array<T,L> &t, const Message &msg, size_type offset) {
+		return indexed::from_msg<L>(t,msg,offset);
 	}
-	template<typename T, size_type N>
-	static inline void append_to_msg(Message &msg, const std::array<T,N> &t) {
-		msg_append(msg, t);
+	template<typename T, size_type L>
+	static inline void append_to_msg(Message &msg, const std::array<T,L> &t) {
+		indexed::append_to_msg<L>(msg,t);
 	}
 #pragma mark - glm
 	template<glm::length_t L, typename T, glm::qualifier Q>
-	inline size_type from_msg(glm::vec<L,T,Q> &t, const Message &msg, size_type offset) {
-		auto pos = offset;
-		for(auto i = 0; i < L; ++i) {
-			pos += msg.to(pos, t[i]);
-		}
-		return pos - offset;
+	static inline size_type from_msg(glm::vec<L,T,Q> &t, const Message &msg, size_type offset) {
+		return indexed::from_msg<L>(t,msg,offset);
 	}
 	template<glm::length_t L, typename T, glm::qualifier Q>
 	static inline void append_to_msg(Message &msg, const glm::vec<L,T,Q> &t) {
-		for(auto i = 0; i < L; ++i) {
-			msg.append(t[i]);
-		}
+		indexed::append_to_msg<L>(msg,t);
 	}
 	template<glm::length_t C, glm::length_t R, typename T, glm::qualifier Q>
-	inline size_type from_msg(glm::mat<C,R,T,Q> &t, const Message &msg, size_type offset) {
-		auto pos = offset;
-		for(auto i = 0; i < C; ++i) {
-			pos += msg.to(pos, t[i]);
-		}
-		return pos - offset;
+	static inline size_type from_msg(glm::mat<C,R,T,Q> &t, const Message &msg, size_type offset) {
+		return indexed::from_msg<C>(t,msg,offset);
 	}
 	template<glm::length_t C, glm::length_t R, typename T, glm::qualifier Q>
 	static inline void append_to_msg(Message &msg, const glm::mat<C,R,T,Q> &t) {
-		for(auto i = 0; i < C; ++i) {
-			msg.append(t[i]);
-		}
+		indexed::append_to_msg<C>(msg,t);
 	}
 	template<typename T, glm::qualifier Q>
-	inline size_type from_msg(glm::qua<T,Q> &t, const Message &msg, size_type offset) {
-		auto pos = offset;
-		for(auto i = 0; i < t.length(); ++i) {
-			pos += msg.to(pos, t[i]);
-		}
-		return pos - offset;
+	static inline size_type from_msg(glm::qua<T,Q> &t, const Message &msg, size_type offset) {
+		return indexed::from_msg<4>(t,msg,offset);
 	}
 	template<typename T, glm::qualifier Q>
 	static inline void append_to_msg(Message &msg, const glm::qua<T,Q> &t) {
-		for(auto i = 0; i < t.length(); ++i) {
-			msg.append(t[i]);
-		}
+		indexed::append_to_msg<4>(msg,t);
+	}
+#pragma mark - of types
+	static inline size_type from_msg(ofVec2f &t, const Message &msg, size_type offset) {
+		return indexed::from_msg<ofVec2f::DIM>(t,msg,offset);
+	}
+	static inline void append_to_msg(Message &msg, const ofVec2f &t) {
+		indexed::append_to_msg<ofVec2f::DIM>(msg,t);
+	}
+	static inline size_type from_msg(ofVec3f &t, const Message &msg, size_type offset) {
+		return indexed::from_msg<ofVec3f::DIM>(t,msg,offset);
+	}
+	static inline void append_to_msg(Message &msg, const ofVec3f &t) {
+		indexed::append_to_msg<ofVec3f::DIM>(msg,t);
+	}
+	static inline size_type from_msg(ofVec4f &t, const Message &msg, size_type offset) {
+		return indexed::from_msg<ofVec4f::DIM>(t,msg,offset);
+	}
+	static inline void append_to_msg(Message &msg, const ofVec4f &t) {
+		indexed::append_to_msg<ofVec4f::DIM>(msg,t);
+	}
+	static inline size_type from_msg(ofMatrix3x3 &t, const Message &msg, size_type offset) {
+		return msg.to(offset, t.a,t.b,t.c,t.d,t.e,t.f,t.g,t.h,t.i);
+	}
+	static inline void append_to_msg(Message &msg, const ofMatrix3x3 &t) {
+		msg.append(t.a,t.b,t.c,t.d,t.e,t.f,t.g,t.h,t.i);
+	}
+	static inline size_type from_msg(ofMatrix4x4 &t, const Message &msg, size_type offset) {
+		return indexed::from_msg<4>(t._mat,msg,offset);
+	}
+	static inline void append_to_msg(Message &msg, const ofMatrix4x4 &t) {
+		indexed::append_to_msg<4>(msg,t._mat);
+	}
+	static inline size_type from_msg(ofQuaternion &t, const Message &msg, size_type offset) {
+		return indexed::from_msg<4>(t,msg,offset);
+	}
+	static inline void append_to_msg(Message &msg, const ofQuaternion &t) {
+		indexed::append_to_msg<4>(msg,t);
+	}
+	template<typename PixelType>
+	static inline size_type from_msg(ofColor_<PixelType> &t, const Message &msg, size_type offset) {
+		return indexed::from_msg<4>(t,msg,offset);
+	}
+	template<typename PixelType>
+	static inline void append_to_msg(Message &msg, const ofColor_<PixelType> &t) {
+		indexed::append_to_msg<4>(msg,t);
+	}
+	static inline size_type from_msg(ofBuffer &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		size_type size;
+		pos += msg.to(pos, size);
+		auto data = (const char*)msg.data();
+		t.set(data+pos, size);
+		return pos+size-offset;
+	}
+	static inline void append_to_msg(Message &msg, const ofBuffer &t) {
+		msg.append(t.size());
+		msg.appendData(t.getData(), t.size());
+	}
+	static inline size_type from_msg(ofJson &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		size_type size;
+		pos += msg.to(pos, size);
+		auto data = (const char*)msg.data();
+		t = ofJson::parse(data+pos, data+pos+size);
+		return pos+size-offset;
+	}
+	static inline void append_to_msg(Message &msg, const ofJson &t) {
+		append_to_msg(msg, t.dump());
 	}
 }
 }
