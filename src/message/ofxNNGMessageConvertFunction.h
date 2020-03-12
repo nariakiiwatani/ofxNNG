@@ -330,6 +330,34 @@ namespace basic_converter {
 	static inline void append_to_msg(Message &msg, const ofNode &t) {
 		msg.append(t.getPosition(), t.getScale(), t.getOrientationQuat());
 	}
+	static inline size_type from_msg(ofCamera &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		pos += from_msg((ofNode&)t, msg, pos);
+		float fov, near_clip, far_clip, aspect_ratio;
+		glm::vec2 lens_offset;
+		bool is_ortho, is_force_aspect_ratio, is_v_flipped;
+		pos += msg.to(pos, fov, near_clip, far_clip, lens_offset, is_force_aspect_ratio, aspect_ratio, is_v_flipped);
+		is_ortho ? t.enableOrtho() : t.disableOrtho();
+		t.setFov(fov);
+		t.setNearClip(near_clip);
+		t.setFarClip(far_clip);
+		t.setLensOffset(lens_offset);
+		t.setAspectRatio(aspect_ratio);
+		t.setForceAspectRatio(is_force_aspect_ratio);
+		t.setVFlip(is_v_flipped);
+		return pos-offset;
+	}
+	static inline void append_to_msg(Message &msg, const ofCamera &t) {
+		append_to_msg(msg, (const ofNode&)t);
+		msg.append(t.getOrtho(),
+				   t.getFov(),
+				   t.getNearClip(),
+				   t.getFarClip(),
+				   t.getLensOffset(),
+				   t.getForceAspectRatio(),
+				   t.getAspectRatio(),
+				   t.isVFlipped());
+	}
 }
 }
 
