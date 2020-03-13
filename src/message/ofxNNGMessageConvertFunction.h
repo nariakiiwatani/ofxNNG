@@ -6,6 +6,7 @@
 #include <vector>
 #include "ofFileUtils.h"
 #include "ofJson.h"
+#include "detail/traits_optimization.h"
 
 namespace ofxNNG {
 	namespace {
@@ -56,32 +57,32 @@ namespace basic_converter {
 		}
 	}
 	
-#pragma mark - trivially_copyable
-	namespace {
-		template<typename T>
-		struct trivially_copyable {
-			using plain_type = typename std::remove_reference<T>::type;
-			static constexpr bool value = std::is_trivially_copyable<plain_type>::value;
-		};
-		template<typename T>
-		struct should_memcpy {
-			static constexpr bool value = trivially_copyable<T>::value && !arithmetic<T>::value;
-		};
-	}
-	template<typename T, typename std::enable_if<should_memcpy<T>::value>::type* = nullptr>
-	static inline size_type from_msg(T &t, const Message &msg, size_type offset) {
-		auto pos = offset;
-		size_type size = sizeof(T);
-		pos += sizeof(size_type);
-		auto data = (const char*)msg.data();
-		memcpy(&t, data+pos, size);
-		return pos+size-offset;
-	}
-	template<typename T, typename std::enable_if<should_memcpy<T>::value>::type* = nullptr>
-	static inline void append_to_msg(Message &msg, T &&t) {
-		msg.append(sizeof(T));
-		msg.appendData(&t, sizeof(T));
-	}
+//#pragma mark - trivially_copyable
+//	namespace {
+//		template<typename T>
+//		struct trivially_copyable {
+//			using plain_type = typename std::remove_reference<T>::type;
+//			static constexpr bool value = std::is_trivially_copyable<plain_type>::value;
+//		};
+//		template<typename T>
+//		struct should_memcpy {
+//			static constexpr bool value = trivially_copyable<T>::value && !arithmetic<T>::value;
+//		};
+//	}
+//	template<typename T, typename std::enable_if<should_memcpy<T>::value>::type* = nullptr>
+//	static inline size_type from_msg(T &t, const Message &msg, size_type offset) {
+//		auto pos = offset;
+//		size_type size = sizeof(T);
+//		pos += sizeof(size_type);
+//		auto data = (const char*)msg.data();
+//		memcpy(&t, data+pos, size);
+//		return pos+size-offset;
+//	}
+//	template<typename T, typename std::enable_if<should_memcpy<T>::value>::type* = nullptr>
+//	static inline void append_to_msg(Message &msg, T &&t) {
+//		msg.append(sizeof(T));
+//		msg.appendData(&t, sizeof(T));
+//	}
 #pragma mark - container
 	namespace {
 		template<typename T, typename = void>
@@ -133,19 +134,6 @@ namespace basic_converter {
 		for(auto &&val : t) {
 			msg.append(const_cast<typename T::value_type&>(val));
 		}
-	}
-#pragma mark - std::string
-	static inline size_type from_msg(std::string &t, const Message &msg, size_type offset) {
-		auto pos = offset;
-		size_type size;
-		pos += msg.to(pos, size);
-		auto data = (const char*)msg.data();
-		t = std::string(data+pos, size);
-		return pos+size-offset;
-	}
-	static inline void append_to_msg(Message &msg, const std::string &t) {
-		msg.append(t.size());
-		msg.appendData(t.data(), t.size());
 	}
 #pragma mark - pair
 	template<typename T, typename U>
@@ -200,7 +188,22 @@ namespace basic_converter {
 #pragma mark - index access
 	namespace indexed {
 		template<typename T>
-		static inline size_type from_msg(T &t, const Message &msg, size_type offset, std::size_t length) {
+		static inline auto from_msg(T &t, const Message &msg, size_type offset, std::size_t length)
+		-> typename std::enable_if<is_safe_to_use_memcpy<T>::value, size_type>::type {
+			std::size_t size = sizeof(decltype(t[0]));
+			memcpy(&t, (const char*)msg.data()+offset, size*length);
+			return size*length;
+		}
+		template<typename T>
+		static inline auto from_msg(T *t, const Message &msg, size_type offset, std::size_t length)
+		-> typename std::enable_if<is_safe_to_use_memcpy<T>::value, size_type>::type {
+			std::size_t size = sizeof(T);
+			memcpy(t, (const char*)msg.data()+offset, size*length);
+			return size*length;
+		}
+		template<typename T>
+		static inline auto from_msg(T &t, const Message &msg, size_type offset, std::size_t length)
+		-> typename std::enable_if<!is_safe_to_use_memcpy<T>::value, size_type>::type {
 			auto pos = offset;
 			for(auto i = 0; i < length; ++i) {
 				pos += msg.to(pos, t[i]);
@@ -208,14 +211,27 @@ namespace basic_converter {
 			return pos - offset;
 		}
 		template<typename T>
-		static inline void append_to_msg(Message &msg, const T &t, std::size_t length) {
+		static inline auto append_to_msg(Message &msg, const T &t, std::size_t length)
+		-> typename std::enable_if<is_safe_to_use_memcpy<T>::value, size_type>::type {
+			std::size_t size = sizeof(decltype(t[0]));
+			msg.appendData(&t, size*length);
+		}
+		template<typename T>
+		static inline auto append_to_msg(Message &msg, const T *t, std::size_t length)
+		-> typename std::enable_if<is_safe_to_use_memcpy<T>::value, size_type>::type {
+			std::size_t size = sizeof(T);
+			msg.appendData(t, size*length);
+		}
+		template<typename T>
+		static inline auto append_to_msg(Message &msg, const T &t, std::size_t length)
+		-> typename std::enable_if<!is_safe_to_use_memcpy<T>::value, size_type>::type {
 			for(auto i = 0; i < length; ++i) {
 				msg.append(t[i]);
 			}
 		}
 	}
 	
-#pragma mark - array
+#pragma mark - std::array
 	template<typename T, size_type L>
 	static inline size_type from_msg(std::array<T,L> &t, const Message &msg, size_type offset) {
 		return indexed::from_msg(t,msg,offset,L);
@@ -223,6 +239,30 @@ namespace basic_converter {
 	template<typename T, size_type L>
 	static inline void append_to_msg(Message &msg, const std::array<T,L> &t) {
 		indexed::append_to_msg(msg,t,L);
+	}
+#pragma mark - native array specialization
+	template<typename T, std::size_t L>
+	static inline size_type from_msg(T(&t)[L], const Message &msg, size_type offset) {
+		return indexed::from_msg(t,msg,offset,L);
+	}
+	template<typename T, std::size_t L>
+	static inline void append_to_msg(Message &msg, const T(&t)[L]) {
+		indexed::append_to_msg(msg,t,L);
+	}
+#pragma mark - string specialization
+	template<class _CharT, class _Traits, class _Allocator>
+	static inline size_type from_msg(std::basic_string<_CharT, _Traits, _Allocator> &t, const Message &msg, size_type offset) {
+		auto pos = offset;
+		size_type size;
+		pos += msg.to(pos, size);
+		t.resize(size);
+		pos += indexed::from_msg(&t[0],msg,pos,size);
+		return pos-offset;
+	}
+	template<class _CharT, class _Traits, class _Allocator>
+	static inline void append_to_msg(Message &msg, const std::basic_string<_CharT, _Traits, _Allocator> &t) {
+		msg.append(t.size());
+		indexed::append_to_msg(msg,t.data(),t.size());
 	}
 #pragma mark - glm
 	template<glm::length_t L, typename T, glm::qualifier Q>
