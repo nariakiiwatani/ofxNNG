@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include "ofFileUtils.h"
 #include "ofJson.h"
-#include "detail/traits_optimization.h"
+#include "detail/user_optimization.h"
 
 namespace ofxNNG {
 	namespace {
@@ -42,7 +42,7 @@ namespace basic_converter {
 			msg.appendData(t.data(), t.size());
 		}
 	};
-
+	
 #pragma mark - arithmetic
 	template<typename T>
 	struct converter<T, typename std::enable_if<std::is_arithmetic<T>::value>::type> {
@@ -113,7 +113,7 @@ namespace basic_converter {
 	}
 #define CONTAINER_COMMON_CONVERTER(Type) \
 template<typename ...T> struct converter<Type<T...>> : detail::container::common_converter<Type<T...>>{}
-	CONTAINER_COMMON_CONVERTER(std::vector);
+//	CONTAINER_COMMON_CONVERTER(std::vector);
 	CONTAINER_COMMON_CONVERTER(std::list);
 	CONTAINER_COMMON_CONVERTER(std::forward_list);
 	CONTAINER_COMMON_CONVERTER(std::deque);
@@ -191,29 +191,39 @@ template<typename ...T> struct converter<Type<T...>> : detail::container::common
 
 #pragma mark - array
 	namespace detail {
-		template<typename T, typename SFINAE=void>
-		struct indexer_converter {
-			static inline size_type from_msg(T &t, const Message &msg, size_type offset, std::size_t length);
-			static inline void append_to_msg(Message &msg, T &&t, std::size_t length);
-		};
+
 		namespace array {
 			template<typename T>
+			struct size_of { static constexpr std::size_t value = sizeof(T); };
+			
+			template<typename T>
+			struct should_use_memcpy {
+				static constexpr bool value = false
+				|| size_of<T>::value==1
+				|| ::ofxNNG::is_safe_to_use_memcpy<T>::value
+#if defined(TARGET_OSX)
+				|| std::is_trivially_copyable<T>::value
+#endif
+				;
+			};
+
+			template<typename T>
 			static inline auto from_msg(T &t, const Message &msg, size_type offset, std::size_t length)
-			-> typename std::enable_if<is_safe_to_use_memcpy<T>::value, size_type>::type {
+			-> typename std::enable_if<should_use_memcpy<decltype(t[0])>::value, size_type>::type {
 				std::size_t size = sizeof(decltype(t[0]));
 				memcpy(&t, (const char*)msg.data()+offset, size*length);
 				return size*length;
 			}
 			template<typename T>
 			static inline auto from_msg(T *t, const Message &msg, size_type offset, std::size_t length)
-			-> typename std::enable_if<is_safe_to_use_memcpy<T>::value, size_type>::type {
+			-> typename std::enable_if<should_use_memcpy<T>::value, size_type>::type {
 				std::size_t size = sizeof(T);
 				memcpy(t, (const char*)msg.data()+offset, size*length);
 				return size*length;
 			}
 			template<typename T>
 			static inline auto from_msg(T &t, const Message &msg, size_type offset, std::size_t length)
-			-> typename std::enable_if<!is_safe_to_use_memcpy<T>::value, size_type>::type {
+			-> typename std::enable_if<!should_use_memcpy<decltype(t[0])>::value, size_type>::type {
 				auto pos = offset;
 				for(auto i = 0; i < length; ++i) {
 					pos += msg.to(pos, t[i]);
@@ -222,7 +232,7 @@ template<typename ...T> struct converter<Type<T...>> : detail::container::common
 			}
 			template<typename T>
 			static inline auto from_msg(T *t, const Message &msg, size_type offset, std::size_t length)
-			-> typename std::enable_if<!is_safe_to_use_memcpy<T>::value, size_type>::type {
+			-> typename std::enable_if<!should_use_memcpy<T>::value, size_type>::type {
 				auto pos = offset;
 				for(auto i = 0; i < length; ++i) {
 					pos += msg.to(pos, t[i]);
@@ -231,26 +241,26 @@ template<typename ...T> struct converter<Type<T...>> : detail::container::common
 			}
 			template<typename T>
 			static inline auto append_to_msg(Message &msg, T &&t, std::size_t length)
-			-> typename std::enable_if<is_safe_to_use_memcpy<T>::value, size_type>::type {
+			-> typename std::enable_if<should_use_memcpy<decltype(t[0])>::value, size_type>::type {
 				std::size_t size = sizeof(decltype(t[0]));
 				msg.appendData(&t, size*length);
 			}
 			template<typename T>
 			static inline auto append_to_msg(Message &msg, const T *t, std::size_t length)
-			-> typename std::enable_if<is_safe_to_use_memcpy<T>::value, size_type>::type {
+			-> typename std::enable_if<should_use_memcpy<T>::value, size_type>::type {
 				std::size_t size = sizeof(T);
 				msg.appendData(t, size*length);
 			}
 			template<typename T>
 			static inline auto append_to_msg(Message &msg, T &&t, std::size_t length)
-			-> typename std::enable_if<!is_safe_to_use_memcpy<T>::value, size_type>::type {
+			-> typename std::enable_if<!should_use_memcpy<decltype(t[0])>::value, size_type>::type {
 				for(auto i = 0; i < length; ++i) {
 					msg.append(t[i]);
 				}
 			}
 			template<typename T>
 			static inline auto append_to_msg(Message &msg, const T *t, std::size_t length)
-			-> typename std::enable_if<!is_safe_to_use_memcpy<T>::value, size_type>::type {
+			-> typename std::enable_if<!should_use_memcpy<T>::value, size_type>::type {
 				for(auto i = 0; i < length; ++i) {
 					msg.append(t[i]);
 				}
@@ -274,12 +284,12 @@ template<typename ...T> struct converter<Type<T...>> : detail::container::common
 					if(length != L) {
 						ofLogWarning("ofxNNG::detail::array::with_length_converter") << "length mismatch";
 					}
-					pos += without_length_converter<T,L>::from_msg(t,msg,pos);
+					pos += array::from_msg(t,msg,offset,length);
 					return pos-offset;
 				}
 				static inline void append_to_msg(Message &msg, const T &t) {
 					msg.append(L);
-					without_length_converter<T,L>::append_to_msg(msg,t);
+					array::append_to_msg(msg,t,L);
 				}
 			};
 		}
@@ -300,7 +310,24 @@ template<typename ...T> struct converter<Type<T...>> : detail::container::common
 	template<typename T>
 	struct converter<T, typename std::enable_if<std::is_array<T>::value>::type> : detail::array::with_length_converter<T, detail::length_of<T>::value>{};
 
-#pragma mark - string
+#pragma mark - std::vector
+	template<typename ...U>
+	struct converter<std::vector<U...>> {
+		using T = std::vector<U...>;
+		static inline size_type from_msg(T &t, const Message &msg, size_type offset) {
+			auto pos = offset;
+			size_type size;
+			pos += msg.to(pos, size);
+			t.resize(size);
+			pos += detail::array::from_msg(&t[0],msg,pos,size);
+			return pos-offset;
+		}
+		static inline void append_to_msg(Message &msg, const T &t) {
+			msg.append(t.size());
+			detail::array::append_to_msg(msg,t.data(),t.size());
+		}
+	};
+#pragma mark - std::string
 	template<typename ...U>
 	struct converter<std::basic_string<U...>> {
 		using T = std::basic_string<U...>;

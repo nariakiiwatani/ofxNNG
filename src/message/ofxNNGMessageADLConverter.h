@@ -1,5 +1,7 @@
 #pragma once
 
+#include "detail/user_optimization.h"
+
 #pragma mark - adl converter
 namespace ofxNNG {
 	
@@ -31,7 +33,7 @@ namespace ofxNNG {
 	namespace detail {
 		struct has_from_msg_impl {
 			template<typename V>
-			static auto check(V &&v) -> decltype(v.from_msg(Message(),0), std::true_type{});
+			static auto check(V &&v) -> decltype(v.from_nng_msg(Message(),0), std::true_type{});
 			template<typename V>
 			static auto check(...) -> std::false_type{};
 		};
@@ -41,7 +43,7 @@ namespace ofxNNG {
 		struct has_append_to_msg_impl {
 			static Message arg;
 			template<typename V>
-			static auto check(const V &v) -> decltype(v.append_to_msg(arg), std::true_type{});
+			static auto check(const V &v) -> decltype(v.append_to_nng_msg(arg), std::true_type{});
 			template<typename V>
 			static auto check(...) -> std::false_type{};
 		};
@@ -57,6 +59,24 @@ namespace ofxNNG {
 		static inline auto append_to_msg(Message &msg, T &&t)
 		-> decltype(t.append_to_nng_msg(msg)) {
 			return t.append_to_nng_msg(msg);
+		}
+		static inline auto append_to_msg(Message &msg, const T &t)
+		-> decltype(t.append_to_nng_msg(msg)) {
+			return t.append_to_nng_msg(msg);
+		}
+	};
+	
+	template<typename T>
+	struct adl_converter<T, typename std::enable_if<is_safe_to_use_memcpy<T>::value>::type> {
+		static inline std::size_t from_msg(T &t, const Message &msg, std::size_t offset) {
+			memcpy(&t, (const char*)msg.data()+offset, sizeof(T));
+			return sizeof(T);
+		}
+		static inline void append_to_msg(Message &msg, T &&t) {
+			msg.appendData(&t, sizeof(T));
+		}
+		static inline void append_to_msg(Message &msg, const T &t) {
+			msg.appendData(&t, sizeof(T));
 		}
 	};
 }
