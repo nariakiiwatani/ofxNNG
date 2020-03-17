@@ -2,26 +2,43 @@
 #include "ofxNNGPair.h"
 #include "Serialize.h"
 
-// you can use types that you defined (endian mismatch or other unexpected issue may occur).
+// you can use any types which you define
 struct Memcopyable {
 	int index;
 	glm::vec3 pos;
-	// for visualstudio, not sure but glm::vec3 seems to be not-trivially-copyable
-	OFX_NNG_MEMBER_CONVERTER(index,pos);
+	// if you are sure it's safe to use memcpy to pack this type into message,
+	// you can notify that to ofxNNG by putting this macro in its scope.
+	// typically, this means at least 1 condition of 2 below.
+	// 1. your host is using big endian(nng uses big endian inside)
+	// 2. both sending and receiving hosts uses same endian
+	OFX_NNG_NOTIFY_TO_USE_MEMCPY_MEMBER
 };
+// or you can notify same thing by this macro outside the scope.
+// this is useful for third-party struct.
+struct ThirdPartys{};
+OFX_NNG_NOTIFY_TO_USE_MEMCPY(ThirdPartys);
 
-// in case there is any non-memcopyable member(ex; std::string).
+// in case there is any non-memcopyable member(ex; std::string),
 // you need to define conversion functions.
 // you can use macro for typical conversion.
 struct NeedConversion {
 	std::string name;
 	ofColor color;
-	OFX_NNG_MEMBER_CONVERTER(name,color);
+	ofMesh mesh;
+	ofMeshFace face;
+	ofPoint point;
+	ofPixels pixels;
+	ofRectangle rectangle;
+	ofBuffer buffer;
+	OFX_NNG_MEMBER_CONVERTER(name,color,mesh,face,point,pixels,rectangle,buffer);
 };
 
-// if you wanted to define conversion functions for third-party classes, 
-// you can do it.
+struct ThirdParty2 {int i;};
 namespace ofxNNG {
+	// for third-party classes
+	OFX_NNG_ADL_CONVERTER(ThirdParty2,i);
+	// actually ofxNNG already defined converters for many of glm and of types(see ofxNNGMessageConvertFunctions.h).
+	// but still you can override them.
 	OFX_NNG_ADL_CONVERTER(ofColor, r,g,b);
 	OFX_NNG_ADL_CONVERTER(glm::vec3, x,y,z);
 }
@@ -58,23 +75,34 @@ void ofApp::setup(){
 	listener->start();
 	
 	// you can use ofxNNG::Message explicitly
+	ofPixels pix;
+	pix.allocate(1,1,OF_PIXELS_RGB);
 	Message msg;
 	msg.append(123);
 	msg.append(456,789,"something");
+	msg.append(pix);
+	msg.append(ofVec3f());
+	msg.append(ofPixels());
+	msg.append(ofMatrix4x4());
+	msg.append(glm::mat4());
+	msg.append(glm::quat());
+	msg.append(ofColor());
 	socket.send(msg);
 	socket.send(std::move(msg));	// if you won't use this msg anymore, it'd be better to use std::move.
 	
-	// or you can send anything directly.
+	// or you can send everything directly.
 	// they will be converted to ofxNNG::Message internally.
 	socket.send(42);
 	socket.send(glm::vec3(0,0,1));
 	socket.send({123,456,789,"something"});
-	// this case it will be memcpy-ed
+	// this case it will be memcpy-ed.
+	// remember there was OFX_NNG_NOTIFY_TO_USE_MEMCPY_MEMBER avobe.
 	Memcopyable copyable;
 	copyable.index = 57;
 	copyable.pos = {1,1,1};
 	socket.send(copyable);
 	// this case it will be converted to ofxNNG::Message using user-defined converter.
+	// defined by OFX_NNG_MEMBER_CONVERTER macro
 	NeedConversion needs;
 	needs.name = "my name";
 	needs.color = ofColor::white;
