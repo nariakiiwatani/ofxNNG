@@ -31,11 +31,13 @@ namespace basic_converter {
 	struct converter<Message> {
 		using T = Message;
 		static inline size_type from_msg(T &t, const Message &msg, size_type offset) {
-			size_type size = *reinterpret_cast<const size_type*>((const char*)msg.data()+offset);
 			t.clear();
-			auto data = (const char*)msg.data();
-			t.appendData(data+offset+sizeof(size_type), size);
-			return sizeof(size_type)+size;
+			auto pos = offset;
+			size_type size;
+			pos += msg.to(pos, size);
+			t.appendData((const char*)msg.data()+pos, size);
+			pos += size;
+			return pos-offset;
 		}
 		static inline void append_to_msg(Message &msg, const T &t) {
 			msg.append(t.size());
@@ -296,7 +298,7 @@ template<typename ...T> struct converter<Type<T...>> : detail::container::common
 					if(length != L) {
 						ofLogWarning("ofxNNG::detail::array::with_length_converter") << "length mismatch";
 					}
-					pos += array::from_msg(t,msg,offset,length);
+					pos += array::from_msg(t,msg,pos,length);
 					return pos-offset;
 				}
 				static inline void append_to_msg(Message &msg, const T &t) {
