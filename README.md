@@ -53,8 +53,14 @@ Yes you can do this;
 struct UserType {
 	std::string name;
 	glm::vec3 pos;
+	// if you know this class is memcpy-able, please notify ofxNNG.
+	OFX_NNG_NOTIFY_TO_USE_MEMCPY_MEMBER
 };
+// or if the class is third-party that you cannot add the macro in the scope, still you can notify
+OFX_NNG_NOTIFY_TO_USE_MEMCPY(UserType);
+
 socket.setCallback<ofxNNG::Message>([](const ofxNNG::Message &msg) {
+	// now you can convert the message into UserType
 	UserType value = msg.get<UserType>();
 });
 ```
@@ -80,7 +86,7 @@ std::string strval;
 socket.setCallback(type, intval, strval);
 ```
 
-If you want to use what is not memcpy-able or you don't want to do so, you have 2 options to implement your own.  
+If you want to use what is not memcpy-able or you don't want to do so, you have another 2 options to take to implement your own.  
 
 __caution:__  
 When you tall to host(s) that uses foreign endian, default conversion(memcpy) may cause an issue.  
@@ -93,11 +99,12 @@ Macro style will be the easiest solution.
 namespace ofxNNG {
 	template<>
 	struct adl_converter<UserType> {
-		static inline void from_msg(UserType &t, const Message &msg, std::size_t offset) {
-			return msg.to(offset, t.name, t.pos);
+		static inline std::size_t from_msg(Type &type, const ofxNNG::Message &msg, std::size_t offset) {
+			return msg.to(offset, type.name, type.pos);
 		}
-		static inline Message to_msg(UserType t) {
-			return Message{t.name, t.pos};
+
+		static inline void append_to_msg(ofxNNG::Message &msg, Type type) { 
+			ofxNNG::Message::appendTo(msg, type.name, type.pos);
 		}
 	};
 }
@@ -116,11 +123,11 @@ namespace ofxNNG {
 ```
 struct UserType {
 	...
-	std::size_t from_msg(const ofxNNG::Message &msg, std::size_t offset) {
+	std::size_t from_nng_msg(const ofxNNG::Message &msg, std::size_t offset) {
 		return msg.to(offset, name, pos);
 	}
-	ofxNNG::Message to_msg() const {
-		return ofxNNG::Message{name, pos};
+	void append_to_nng_msg(ofxNNG::Message &msg) const {
+		ofxNNG::Message::appendTo(msg, name, pos);
 	}
 };
 ```
