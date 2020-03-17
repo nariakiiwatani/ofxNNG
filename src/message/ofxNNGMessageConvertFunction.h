@@ -42,7 +42,7 @@ namespace basic_converter {
 			msg.appendData(t.data(), t.size());
 		}
 	};
-	
+
 #pragma mark - arithmetic
 	template<typename T>
 	struct converter<T, typename std::enable_if<std::is_arithmetic<T>::value>::type> {
@@ -82,6 +82,18 @@ namespace basic_converter {
 			};
 		}
 	}
+#pragma mark - nng_pipe
+	template<>
+	struct converter<nng_pipe> {
+		using T = nng_pipe;
+		static inline size_type from_msg(T &t, const Message &msg, size_type offset) {
+			return converter<int>::from_msg((int&)t.id,msg,offset);
+		}
+		static inline void append_to_msg(Message &msg, const T &t) {
+			converter<int>::append_to_msg(msg,nng_pipe_id(t));
+		}
+	};
+	
 #pragma mark - enum
 	template<typename T>
 	struct converter<T, typename std::enable_if<std::is_enum<T>::value>::type> : detail::cast::c_style_cast_converter<T, typename std::underlying_type<T>::type>{};
