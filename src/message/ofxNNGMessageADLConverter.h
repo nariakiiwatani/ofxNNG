@@ -31,27 +31,21 @@ namespace ofxNNG {
 	};
 
 	namespace detail {
-		struct has_from_msg_impl {
-			template<typename V>
-			static auto check(V &&v) -> decltype(v.from_nng_msg(Message(),0), std::true_type{});
-			template<typename V>
-			static auto check(...) -> std::false_type{};
+		template<typename T>
+		struct has_member_converters {
+		private:
+			template<typename U,
+				std::size_t(U::*)(const Message&,std::size_t)=&U::from_nng_msg,
+				void(U::*)(Message&)const=&U::append_to_nng_msg
+			>
+			static std::true_type check(U*);
+			static std::false_type check(...);
+			public:
+			static constexpr bool value = decltype(check((T*)(nullptr)))::value;
 		};
-		template<typename V>
-		using has_from_msg = decltype(has_from_msg_impl::check<V>(std::declval<V>()));
-
-		struct has_append_to_msg_impl {
-			static Message arg;
-			template<typename V>
-			static auto check(const V &v) -> decltype(v.append_to_nng_msg(arg), std::true_type{});
-			template<typename V>
-			static auto check(...) -> std::false_type{};
-		};
-		template<typename V>
-		using has_append_to_msg = decltype(has_append_to_msg_impl::check<V>(std::declval<V>()));
 	}
 	template<typename T>
-	struct adl_converter<T, typename std::enable_if<detail::has_from_msg<T>::value>::type> {
+	struct adl_converter<T, typename std::enable_if<detail::has_member_converters<T>::value>::type> {
 		static inline auto from_msg(T &t, const Message &msg, std::size_t offset)
 		-> decltype(t.from_nng_msg(msg, offset)) {
 			return t.from_nng_msg(msg, offset);

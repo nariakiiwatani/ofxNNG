@@ -255,26 +255,26 @@ template<typename ...T> struct converter<Type<T...>> : detail::container::common
 			}
 			template<typename T>
 			static inline auto append_to_msg(Message &msg, T &&t, std::size_t length)
-			-> typename std::enable_if<should_use_memcpy<decltype(t[0])>::value, size_type>::type {
+			-> typename std::enable_if<should_use_memcpy<decltype(t[0])>::value>::type {
 				std::size_t size = sizeof(decltype(t[0]));
 				msg.appendData(&t, size*length);
 			}
 			template<typename T>
 			static inline auto append_to_msg(Message &msg, const T *t, std::size_t length)
-			-> typename std::enable_if<should_use_memcpy<T>::value, size_type>::type {
+			-> typename std::enable_if<should_use_memcpy<T>::value>::type {
 				std::size_t size = sizeof(T);
 				msg.appendData(t, size*length);
 			}
 			template<typename T>
 			static inline auto append_to_msg(Message &msg, T &&t, std::size_t length)
-			-> typename std::enable_if<!should_use_memcpy<decltype(t[0])>::value, size_type>::type {
+			-> typename std::enable_if<!should_use_memcpy<decltype(t[0])>::value>::type {
 				for(auto i = 0; i < length; ++i) {
 					msg.append(t[i]);
 				}
 			}
 			template<typename T>
 			static inline auto append_to_msg(Message &msg, const T *t, std::size_t length)
-			-> typename std::enable_if<!should_use_memcpy<T>::value, size_type>::type {
+			-> typename std::enable_if<!should_use_memcpy<T>::value>::type {
 				for(auto i = 0; i < length; ++i) {
 					msg.append(t[i]);
 				}
