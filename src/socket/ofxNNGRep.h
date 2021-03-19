@@ -57,8 +57,13 @@ private:
 				auto result = nng_aio_result(work->aio);
 				if(result != 0) {
 					ofLogError("ofxNNGRep") << "failed to receive message; " << nng_strerror(result);
-					work->state = aio::RECV;
-					nng_ctx_recv(work->ctx, work->aio);
+					if(result == NNG_ECANCELED) {
+						nng_ctx_close(work->ctx);
+					}
+					else {
+						work->state = aio::RECV;
+						nng_ctx_recv(work->ctx, work->aio);
+					}
 					return;
 				}
 				if(me->isEnabledAutoUpdate()) {
