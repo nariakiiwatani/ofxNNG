@@ -126,6 +126,9 @@ public:
 		nng_close(socket_);
 		pipe_.clear();
 	}
+	void setRecvMaxSize(std::size_t size) {
+		nng_setopt_size(socket_, NNG_OPT_RECVMAXSZ, size);
+	}
 protected:
 	nng_socket socket_;
 	std::vector<std::shared_ptr<Pipe>> pipe_;
