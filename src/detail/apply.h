@@ -15,14 +15,14 @@ namespace ofxNNG {
 		template<typename F, typename ...Args>
 		struct apply_fun {
 			auto operator()(F &&func, const ofxNNG::Message &msg)
-			-> decltype(func(declval<Args>()...)) {
+			-> decltype(func(std::declval<Args>()...)) {
 				return detail::tuple_apply(func, msg.get<std::tuple<Args...>>());
 			}
 		};
 		template<typename F>
 		struct apply_fun<F, ofxNNG::Message> {
 			auto operator()(F &&func, const ofxNNG::Message &msg)
-			-> decltype(func(declval<ofxNNG::Message>())) {
+			-> decltype(func(std::declval<ofxNNG::Message>())) {
 				return func(ofxNNG::Message(msg));
 			}
 		};
@@ -30,7 +30,7 @@ namespace ofxNNG {
 
 	template<typename ...Args, typename F>
 	static auto apply(F &&func, const ofxNNG::Message &msg)
-	-> decltype(declval<detail::apply_fun<F, Args...>>()(func, msg)) {
+	-> decltype(std::declval<detail::apply_fun<F, Args...>>()(func, msg)) {
 		return detail::apply_fun<F, Args...>()(func, msg);
 	}
 }

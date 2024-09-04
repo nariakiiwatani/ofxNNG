@@ -41,14 +41,14 @@ public:
 
 	template<typename ...Args, typename F>
 	auto subscribe(const std::string &topic, F &&func)
-	-> decltype(func(declval<Args>()...), bool()) {
+	-> decltype(func(std::declval<Args>()...), bool()) {
 		return subscribe(topic.data(), topic.size(), [func](Message msg) {
 			apply<Args...>(func, msg);
 		});
 	}
 	template<typename ...Args, typename F>
 	auto subscribe(const std::pair<const void*, std::size_t> &topic, F &&func)
-	-> decltype(func(declval<Args>()...), bool()) {
+	-> decltype(func(std::declval<Args>()...), bool()) {
 		return subscribe(topic.first, topic.second, [func](Message msg) {
 			apply<Args...>(func, msg);
 		});

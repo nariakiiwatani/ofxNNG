@@ -6,10 +6,13 @@
 #include <vector>
 #include <deque>
 #include <queue>
+#include <list>
+#include <stack>
 #include <unordered_set>
 #include <unordered_map>
 #include "ofFileUtils.h"
 #include "ofJson.h"
+#include "ofCamera.h"
 #include "detail/user_optimization.h"
 
 namespace ofxNNG {
